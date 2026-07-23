@@ -77,7 +77,7 @@ interface NavItem {
           </a>
         </mat-nav-list>
 
-        <div class="sidenav-footer">
+        <div class="sidenav-footer cursor-pointer" *ngIf="userRole == 'admin' || userRole == 'super_admin'">
           <mat-divider></mat-divider>
           <a
             mat-list-item
@@ -443,7 +443,7 @@ export class MainLayoutComponent implements OnInit {
     private authService: AuthService,
     private tokenService: TokenService,
     private notificationsService: NotificationsService,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.userRole = this.tokenService.getRole();

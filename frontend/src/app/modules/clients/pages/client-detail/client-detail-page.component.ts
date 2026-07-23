@@ -20,7 +20,7 @@ import { ClientsService } from '../../../../core/services/clients.service';
 import { UsersService } from '../../../../core/services/users.service';
 import { DocumentsService } from '../../../../core/services/documents.service';
 import { WorkflowsService } from '../../../../core/services/workflows.service';
-import { Client, Document, Workflow, ClientStatus, User, UserRole } from '../../../../core/models';
+import { Client, Document, Workflow, WorkflowType, ClientStatus, User, UserRole } from '../../../../core/models';
 
 const COLOMBIAN_CITIES = [
   'Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena',
@@ -281,19 +281,83 @@ const STATUS_COLORS: Record<string, string> = {
         </mat-tab>
 
         <mat-tab label="Workflows">
-          <div class="p-4">
-            <div *ngIf="workflows.length === 0" class="text-center text-gray-500 py-8">
-              No hay workflows creados
+          <div class="p-4 space-y-4">
+            <div class="flex justify-between items-center">
+              <h3 class="text-base font-bold text-slate-700 m-0">Historial de Flujos de Trabajo</h3>
+              <button mat-raised-button color="primary" *ngIf="!showNewWorkflowForm" (click)="showNewWorkflowForm = true">
+                <mat-icon>add</mat-icon>
+                Iniciar Workflow
+              </button>
             </div>
-            <div *ngFor="let wf of workflows" class="border rounded p-4 mb-3">
-              <div class="flex justify-between items-center">
+
+            <!-- Formulario en línea para nuevo workflow -->
+            <form *ngIf="showNewWorkflowForm" (ngSubmit)="createWorkflow()" class="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4 animate-scale-in">
+              <h4 class="text-sm font-bold text-slate-700">Registrar Nuevo Proceso Fiscal</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <mat-form-field appearance="outline" class="w-full">
+                  <mat-label>Tipo de Declaración</mat-label>
+                  <mat-select [(ngModel)]="newWorkflowData.type" name="wfType" required>
+                    <mat-option [value]="'declaracion_renta'">Declaración de Renta</mat-option>
+                    <mat-option [value]="'declaracion_simplificada'">Declaración Simplificada</mat-option>
+                  </mat-select>
+                </mat-form-field>
+
+                <mat-form-field appearance="outline" class="w-full">
+                  <mat-label>Año Fiscal</mat-label>
+                  <input matInput type="number" [(ngModel)]="newWorkflowData.taxYear" name="wfYear" required>
+                </mat-form-field>
+              </div>
+
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Notas iniciales</mat-label>
+                <textarea matInput [(ngModel)]="newWorkflowData.notes" name="wfNotes" rows="2"></textarea>
+              </mat-form-field>
+
+              <div class="flex justify-end gap-2">
+                <button mat-stroked-button type="button" (click)="cancelNewWorkflow()">Cancelar</button>
+                <button mat-raised-button color="primary" type="submit" [disabled]="savingWorkflow">
+                  <mat-spinner *ngIf="savingWorkflow" diameter="18" class="inline-block mr-1"></mat-spinner>
+                  Iniciar
+                </button>
+              </div>
+            </form>
+
+            <div *ngIf="workflows.length === 0" class="text-center text-gray-500 py-8">
+              No hay workflows creados para este cliente.
+            </div>
+
+            <!-- Listado de workflows -->
+            <div *ngIf="workflows.length > 0" class="space-y-3">
+              <div *ngFor="let wf of workflows" class="border rounded-xl p-4 bg-white shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow transition-shadow">
                 <div>
-                  <p class="font-medium">{{ wf.type === 'declaracion_renta' ? 'Declaración de Renta' : wf.type }}</p>
-                  <p class="text-sm text-gray-500">Año fiscal {{ wf.taxYear }}</p>
+                  <h4 class="font-bold text-slate-800 m-0">{{ getWorkflowTypeLabel(wf.type) }}</h4>
+                  <p class="text-xs text-slate-500 m-0 mt-1">Año Fiscal: <strong class="text-slate-700">{{ wf.taxYear }}</strong></p>
+                  <p class="text-xs text-slate-400 m-0 mt-1" *ngIf="wf.notes">Nota: {{ wf.notes }}</p>
+                  <div class="text-xs text-slate-500 mt-2 flex gap-4">
+                    <span>Iniciado: {{ (wf.startedAt | date:'shortDate') || '—' }}</span>
+                    <span>Completado: {{ (wf.completedAt | date:'shortDate') || '—' }}</span>
+                  </div>
                 </div>
-                <span [class]="wf.status === 'completed' ? 'px-2 py-1 rounded text-xs bg-green-100 text-green-700' : 'px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-700'">
-                  {{ wf.status }}
-                </span>
+
+                <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                  <mat-form-field appearance="outline" class="status-field" style="width: 170px;">
+                    <mat-select
+                      [ngModel]="wf.status"
+                      (ngModelChange)="updateWorkflowStatus(wf.id, $event)"
+                      class="status-select"
+                    >
+                      <mat-option [value]="'not_started'">No Iniciado</mat-option>
+                      <mat-option [value]="'in_progress'">En Progreso</mat-option>
+                      <mat-option [value]="'awaiting_documents'">Esperando Docs</mat-option>
+                      <mat-option [value]="'in_review'">En Revisión</mat-option>
+                      <mat-option [value]="'completed'">Completado</mat-option>
+                    </mat-select>
+                  </mat-form-field>
+
+                  <button mat-icon-button color="warn" (click)="deleteWorkflow(wf.id)" matTooltip="Cancelar proceso">
+                    <mat-icon>cancel</mat-icon>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -347,6 +411,22 @@ const STATUS_COLORS: Record<string, string> = {
         width: 100%;
       }
     }
+
+    ::ng-deep .status-field .mat-mdc-text-field-wrapper {
+      padding: 0 12px !important;
+      height: 36px !important;
+    }
+    ::ng-deep .status-field .mat-mdc-form-field-flex {
+      height: 36px !important;
+      align-items: center !important;
+    }
+    ::ng-deep .status-field .mat-mdc-form-field-infix {
+      padding: 6px 0 !important;
+      min-height: auto !important;
+    }
+    ::ng-deep .status-field .mat-mdc-form-field-subscript-wrapper {
+      display: none !important;
+    }
   `],
 })
 export class ClientDetailPageComponent implements OnInit {
@@ -368,6 +448,14 @@ export class ClientDetailPageComponent implements OnInit {
   filteredCities = [...COLOMBIAN_CITIES];
 
   ClientStatus = ClientStatus;
+
+  showNewWorkflowForm = false;
+  savingWorkflow = false;
+  newWorkflowData = {
+    type: WorkflowType.DECLARACION_RENTA,
+    taxYear: new Date().getFullYear() - 1,
+    notes: '',
+  };
 
   statuses = Object.values(ClientStatus).map((v) => ({
     value: v,
@@ -576,5 +664,79 @@ export class ClientDetailPageComponent implements OnInit {
 
   statusDotClass(status: ClientStatus): string {
     return (STATUS_COLORS[status] || 'bg-blue-100 text-blue-700').split(' ')[0];
+  }
+
+  cancelNewWorkflow(): void {
+    this.showNewWorkflowForm = false;
+    this.newWorkflowData = {
+      type: WorkflowType.DECLARACION_RENTA,
+      taxYear: new Date().getFullYear() - 1,
+      notes: '',
+    };
+  }
+
+  createWorkflow(): void {
+    if (!this.newWorkflowData.type || !this.newWorkflowData.taxYear) return;
+    this.savingWorkflow = true;
+    const payload = {
+      clientId: this.client.id,
+      type: this.newWorkflowData.type,
+      taxYear: this.newWorkflowData.taxYear,
+      notes: this.newWorkflowData.notes,
+    };
+    this.workflowsService.create(payload).subscribe({
+      next: () => {
+        this.savingWorkflow = false;
+        this.showNewWorkflowForm = false;
+        this.newWorkflowData = {
+          type: WorkflowType.DECLARACION_RENTA,
+          taxYear: new Date().getFullYear() - 1,
+          notes: '',
+        };
+        this.snackBar.open('Flujo de trabajo iniciado con éxito', 'Cerrar', { duration: 3000 });
+        this.loadWorkflows();
+      },
+      error: (err) => {
+        console.error('Error starting workflow:', err);
+        this.savingWorkflow = false;
+        this.snackBar.open('Error al iniciar el flujo de trabajo', 'Cerrar', { duration: 3000 });
+      },
+    });
+  }
+
+  updateWorkflowStatus(id: string, newStatus: string): void {
+    this.workflowsService.updateStatus(id, newStatus).subscribe({
+      next: () => {
+        this.snackBar.open('Estado del proceso actualizado', 'Cerrar', { duration: 3000 });
+        this.loadWorkflows();
+      },
+      error: (err) => {
+        console.error('Error updating workflow status:', err);
+        this.snackBar.open('Error al actualizar el estado del proceso', 'Cerrar', { duration: 3000 });
+      },
+    });
+  }
+
+  deleteWorkflow(id: string): void {
+    if (confirm('¿Estás seguro de que deseas cancelar este flujo de trabajo?')) {
+      this.workflowsService.remove(id).subscribe({
+        next: () => {
+          this.snackBar.open('Flujo de trabajo cancelado', 'Cerrar', { duration: 3000 });
+          this.loadWorkflows();
+        },
+        error: (err) => {
+          console.error('Error cancelling workflow:', err);
+          this.snackBar.open('Error al cancelar el proceso', 'Cerrar', { duration: 3000 });
+        },
+      });
+    }
+  }
+
+  getWorkflowTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      declaracion_renta: 'Declaración de Renta',
+      declaracion_simplificada: 'Declaración Simplificada',
+    };
+    return labels[type] || type;
   }
 }

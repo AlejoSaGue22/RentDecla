@@ -9,3 +9,5 @@ export { DocumentReview } from './document-review.entity';
 export { Workflow } from './workflow.entity';
 export { Notification } from './notification.entity';
 export { Subscription } from './subscription.entity';
+export { DocumentCategory } from './document-category.entity';
+

@@ -51,3 +51,25 @@ export class UpdateTenantDto {
   @IsBoolean()
   isActive?: boolean;
 }
+
+export class UpdateMyTenantDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  logoUrl?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  primaryColor?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  documentPrefix?: string;
+}

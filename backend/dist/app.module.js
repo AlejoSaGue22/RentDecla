@@ -29,6 +29,7 @@ const mailer_module_1 = require("./modules/mailer/mailer.module");
 const portal_module_1 = require("./modules/portal/portal.module");
 const billing_module_1 = require("./modules/billing/billing.module");
 const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
+const document_categories_module_1 = require("./modules/document-categories/document-categories.module");
 const jwt_auth_guard_1 = require("./common/guards/jwt-auth.guard");
 const roles_guard_1 = require("./common/guards/roles.guard");
 const tenant_guard_1 = require("./common/guards/tenant.guard");
@@ -66,6 +67,7 @@ exports.AppModule = AppModule = __decorate([
             portal_module_1.PortalModule,
             billing_module_1.BillingModule,
             dashboard_module_1.DashboardModule,
+            document_categories_module_1.DocumentCategoriesModule,
         ],
         providers: [
             { provide: core_1.APP_GUARD, useClass: jwt_auth_guard_1.JwtAuthGuard },

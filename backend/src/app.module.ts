@@ -17,6 +17,7 @@ import { MailerModule } from './modules/mailer/mailer.module';
 import { PortalModule } from './modules/portal/portal.module';
 import { BillingModule } from './modules/billing/billing.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { DocumentCategoriesModule } from './modules/document-categories/document-categories.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { TenantGuard } from './common/guards/tenant.guard';
@@ -51,6 +52,7 @@ import jwtConfig from './config/jwt.config';
     PortalModule,
     BillingModule,
     DashboardModule,
+    DocumentCategoriesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

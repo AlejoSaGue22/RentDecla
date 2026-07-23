@@ -11,6 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { PortalService, PortalDocument, PortalDocumentRequest } from '../../services/portal.service';
+import { DocumentCategoriesService, DocumentCategory } from '../../../core/services/document-categories.service';
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -137,7 +138,7 @@ const MAX_SIZE = 10 * 1024 * 1024;
                 </div>
                 <div class="request-actions" *ngIf="request.status !== 'completed'">
                   <input #reqFileInput type="file" hidden accept=".pdf,.jpg,.jpeg,.png"
-                         (change)="onRequestFileSelected($event, request.id)">
+                         (change)="onRequestFileSelected($event, request)">
                   <button mat-stroked-button color="primary" (click)="reqFileInput.click()" [disabled]="isUploading">
                     <mat-icon>upload_file</mat-icon>
                     Subir documento
@@ -389,24 +390,43 @@ export class PortalDocumentsComponent implements OnInit {
   isUploading = false;
   isDragOver = false;
 
-  categories = [
-    'RUT',
-    'Certificado Laboral',
-    'Extracto Bancario',
-    'Impuesto Predial',
-    'Factura de Compra',
-    'Certificado Tributario',
-    'Otro',
-  ];
+  categories: string[] = [];
 
   constructor(
     private portalService: PortalService,
+    private categoriesService: DocumentCategoriesService,
     private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit() {
     this.loadDocuments();
     this.loadDocumentRequests();
+    this.loadCategories();
+  }
+
+  loadCategories() {
+    this.categoriesService.findAll().subscribe({
+      next: (list: DocumentCategory[]) => {
+        this.categories = list.map((c: DocumentCategory) => c.name);
+        if (this.categories.length > 0) {
+          if (!this.categories.includes(this.selectedCategory)) {
+            this.selectedCategory = this.categories.includes('Otro') ? 'Otro' : this.categories[0];
+          }
+        }
+      },
+      error: (err: any) => {
+        console.error('Error loading categories:', err);
+        this.categories = [
+          'RUT',
+          'Certificado Laboral',
+          'Extracto Bancario',
+          'Impuesto Predial',
+          'Factura de Compra',
+          'Certificado Tributario',
+          'Otro',
+        ];
+      }
+    });
   }
 
   loadDocuments() {
@@ -454,9 +474,9 @@ export class PortalDocumentsComponent implements OnInit {
     if (files) this.uploadFiles(files, this.selectedCategory);
   }
 
-  onRequestFileSelected(event: any, requestId: string) {
+  onRequestFileSelected(event: any, request: PortalDocumentRequest) {
     const files = event.target.files;
-    if (files) this.uploadFiles(files, this.selectedCategory, requestId);
+    if (files) this.uploadFiles(files, request.title, request.id);
     event.target.value = '';
   }
 

@@ -11,3 +11,9 @@ export declare class UpdateTenantDto {
     primaryColor?: string;
     isActive?: boolean;
 }
+export declare class UpdateMyTenantDto {
+    name?: string;
+    logoUrl?: string;
+    primaryColor?: string;
+    documentPrefix?: string;
+}

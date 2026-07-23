@@ -19,6 +19,7 @@ const tenants_service_1 = require("./tenants.service");
 const tenant_dto_1 = require("./dto/tenant.dto");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
 const roles_decorator_2 = require("../../common/decorators/roles.decorator");
+const tenant_id_decorator_1 = require("../../common/decorators/tenant-id.decorator");
 let TenantsController = class TenantsController {
     tenantsService;
     constructor(tenantsService) {
@@ -29,6 +30,12 @@ let TenantsController = class TenantsController {
     }
     findAll() {
         return this.tenantsService.findAll();
+    }
+    findMyTenant(tenantId) {
+        return this.tenantsService.findOne(tenantId);
+    }
+    updateMyTenant(tenantId, dto) {
+        return this.tenantsService.update(tenantId, dto);
     }
     findOne(id) {
         return this.tenantsService.findOne(id);
@@ -61,6 +68,25 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], TenantsController.prototype, "findAll", null);
+__decorate([
+    (0, common_1.Get)('me'),
+    (0, roles_decorator_1.Roles)(roles_decorator_2.UserRole.ADMIN, roles_decorator_2.UserRole.SUPER_ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Get current user tenant details' }),
+    __param(0, (0, tenant_id_decorator_1.TenantId)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], TenantsController.prototype, "findMyTenant", null);
+__decorate([
+    (0, common_1.Patch)('me'),
+    (0, roles_decorator_1.Roles)(roles_decorator_2.UserRole.ADMIN),
+    (0, swagger_1.ApiOperation)({ summary: 'Update current tenant details' }),
+    __param(0, (0, tenant_id_decorator_1.TenantId)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, tenant_dto_1.UpdateMyTenantDto]),
+    __metadata("design:returntype", void 0)
+], TenantsController.prototype, "updateMyTenant", null);
 __decorate([
     (0, common_1.Get)(':id'),
     (0, swagger_1.ApiOperation)({ summary: 'Get tenant by id' }),

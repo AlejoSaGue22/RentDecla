@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Subscription = exports.Notification = exports.Workflow = exports.DocumentReview = exports.DocumentRequest = exports.Document = exports.TaxProfile = exports.Client = exports.User = exports.Tenant = exports.AppBaseEntity = void 0;
+exports.DocumentCategory = exports.Subscription = exports.Notification = exports.Workflow = exports.DocumentReview = exports.DocumentRequest = exports.Document = exports.TaxProfile = exports.Client = exports.User = exports.Tenant = exports.AppBaseEntity = void 0;
 var base_entity_1 = require("./base.entity");
 Object.defineProperty(exports, "AppBaseEntity", { enumerable: true, get: function () { return base_entity_1.AppBaseEntity; } });
 var tenant_entity_1 = require("./tenant.entity");
@@ -23,4 +23,6 @@ var notification_entity_1 = require("./notification.entity");
 Object.defineProperty(exports, "Notification", { enumerable: true, get: function () { return notification_entity_1.Notification; } });
 var subscription_entity_1 = require("./subscription.entity");
 Object.defineProperty(exports, "Subscription", { enumerable: true, get: function () { return subscription_entity_1.Subscription; } });
+var document_category_entity_1 = require("./document-category.entity");
+Object.defineProperty(exports, "DocumentCategory", { enumerable: true, get: function () { return document_category_entity_1.DocumentCategory; } });
 //# sourceMappingURL=index.js.map

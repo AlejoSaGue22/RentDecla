@@ -12,6 +12,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ClientsService } from '../../../../core/services/clients.service';
 import { DocumentsService } from '../../../../core/services/documents.service';
+import { DocumentCategoriesService, DocumentCategory } from '../../../../core/services/document-categories.service';
 import { Client, Document } from '../../../../core/models';
 
 @Component({
@@ -386,24 +387,43 @@ export class DocumentsPageComponent implements OnInit {
   uploadCategory = 'Otro';
   uploading = false;
 
-  categories = [
-    'RUT',
-    'Certificado Laboral',
-    'Extracto Bancario',
-    'Impuesto Predial',
-    'Factura de Compra',
-    'Certificado Tributario',
-    'Otro',
-  ];
+  categories: string[] = [];
 
   constructor(
     private clientsService: ClientsService,
     private documentsService: DocumentsService,
+    private categoriesService: DocumentCategoriesService,
     private snackBar: MatSnackBar,
   ) {}
 
   ngOnInit(): void {
     this.loadClients();
+    this.loadCategories();
+  }
+
+  loadCategories(): void {
+    this.categoriesService.findAll().subscribe({
+      next: (list: DocumentCategory[]) => {
+        this.categories = list.map((c: DocumentCategory) => c.name);
+        if (this.categories.length > 0) {
+          if (!this.categories.includes(this.uploadCategory)) {
+            this.uploadCategory = this.categories.includes('Otro') ? 'Otro' : this.categories[0];
+          }
+        }
+      },
+      error: (err: any) => {
+        console.error('Error loading categories:', err);
+        this.categories = [
+          'RUT',
+          'Certificado Laboral',
+          'Extracto Bancario',
+          'Impuesto Predial',
+          'Factura de Compra',
+          'Certificado Tributario',
+          'Otro',
+        ];
+      }
+    });
   }
 
   loadClients(): void {

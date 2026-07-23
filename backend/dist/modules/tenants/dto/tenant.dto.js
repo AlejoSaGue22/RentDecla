@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UpdateTenantDto = exports.CreateTenantDto = void 0;
+exports.UpdateMyTenantDto = exports.UpdateTenantDto = exports.CreateTenantDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
 class CreateTenantDto {
@@ -83,4 +83,35 @@ __decorate([
     (0, class_validator_1.IsBoolean)(),
     __metadata("design:type", Boolean)
 ], UpdateTenantDto.prototype, "isActive", void 0);
+class UpdateMyTenantDto {
+    name;
+    logoUrl;
+    primaryColor;
+    documentPrefix;
+}
+exports.UpdateMyTenantDto = UpdateMyTenantDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMyTenantDto.prototype, "name", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMyTenantDto.prototype, "logoUrl", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMyTenantDto.prototype, "primaryColor", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateMyTenantDto.prototype, "documentPrefix", void 0);
 //# sourceMappingURL=tenant.dto.js.map

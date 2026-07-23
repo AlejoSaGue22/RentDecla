@@ -15,7 +15,7 @@ const entities_1 = require("./entities");
 const entities = [
     entities_1.Tenant, entities_1.User, entities_1.Client, entities_1.TaxProfile, entities_1.Document,
     entities_1.DocumentRequest, entities_1.DocumentReview, entities_1.Workflow,
-    entities_1.Notification, entities_1.Subscription,
+    entities_1.Notification, entities_1.Subscription, entities_1.DocumentCategory,
 ];
 let DatabaseModule = class DatabaseModule {
 };

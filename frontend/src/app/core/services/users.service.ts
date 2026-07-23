@@ -13,4 +13,16 @@ export class UsersService {
   findAll(params?: { role?: UserRole; search?: string }): Observable<User[]> {
     return this.http.get<User[]>(this.apiUrl, { params: params as any });
   }
+
+  create(user: Partial<User> & { password?: string }): Observable<User> {
+    return this.http.post<User>(this.apiUrl, user);
+  }
+
+  update(id: string, user: Partial<User> & { password?: string }): Observable<User> {
+    return this.http.patch<User>(`${this.apiUrl}/${id}`, user);
+  }
+
+  remove(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
 }

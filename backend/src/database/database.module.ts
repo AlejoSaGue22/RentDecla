@@ -5,13 +5,13 @@ import { DatabaseService } from './database.service';
 import {
   Tenant, User, Client, TaxProfile, Document,
   DocumentRequest, DocumentReview, Workflow,
-  Notification, Subscription,
+  Notification, Subscription, DocumentCategory,
 } from './entities';
 
 const entities = [
   Tenant, User, Client, TaxProfile, Document,
   DocumentRequest, DocumentReview, Workflow,
-  Notification, Subscription,
+  Notification, Subscription, DocumentCategory,
 ];
 
 @Global()

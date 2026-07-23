@@ -22,6 +22,8 @@ export interface User {
   email: string;
   role: UserRole;
   tenantId?: string;
+  phone?: string;
+  isActive?: boolean;
 }
 
 export enum UserRole {
@@ -37,6 +39,7 @@ export interface Tenant {
   slug: string;
   logoUrl?: string;
   primaryColor?: string;
+  documentPrefix?: string;
   isActive: boolean;
 }
 

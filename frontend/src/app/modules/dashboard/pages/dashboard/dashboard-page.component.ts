@@ -466,7 +466,7 @@ export class DashboardPageComponent implements OnInit {
     return ((this.stats?.completedWorkflows || 0) / total) * 100;
   }
 
-  constructor(private dashboardService: DashboardService) {}
+  constructor(private dashboardService: DashboardService) { }
 
   ngOnInit(): void {
     this.dashboardService.getStats().subscribe({

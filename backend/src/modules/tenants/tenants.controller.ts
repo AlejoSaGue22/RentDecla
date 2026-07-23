@@ -1,14 +1,15 @@
 import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { TenantsService } from './tenants.service';
-import { CreateTenantDto, UpdateTenantDto } from './dto/tenant.dto';
+import { CreateTenantDto, UpdateTenantDto, UpdateMyTenantDto } from './dto/tenant.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/decorators/roles.decorator';
+import { TenantId } from '../../common/decorators/tenant-id.decorator';
 
 @ApiTags('Tenants')
 @Controller('tenants')
 export class TenantsController {
-  constructor(private readonly tenantsService: TenantsService) {}
+  constructor(private readonly tenantsService: TenantsService) { }
 
   @Post()
   @Roles(UserRole.SUPER_ADMIN)
@@ -22,6 +23,20 @@ export class TenantsController {
   @ApiOperation({ summary: 'List all tenants' })
   findAll() {
     return this.tenantsService.findAll();
+  }
+
+  @Get('me')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Get current user tenant details' })
+  findMyTenant(@TenantId() tenantId: string) {
+    return this.tenantsService.findOne(tenantId);
+  }
+
+  @Patch('me')
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Update current tenant details' })
+  updateMyTenant(@TenantId() tenantId: string, @Body() dto: UpdateMyTenantDto) {
+    return this.tenantsService.update(tenantId, dto);
   }
 
   @Get(':id')
