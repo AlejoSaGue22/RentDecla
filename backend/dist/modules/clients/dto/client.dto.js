@@ -9,7 +9,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ClientQueryDto = exports.UpdateClientDto = exports.CreateClientDto = void 0;
+exports.ClientQueryDto = exports.ResendInvitationDto = exports.UpdateClientDto = exports.CreateClientDto = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
 const client_entity_1 = require("../../../database/entities/client.entity");
@@ -151,6 +151,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateClientDto.prototype, "assignedToId", void 0);
+class ResendInvitationDto {
+    email;
+}
+exports.ResendInvitationDto = ResendInvitationDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, example: 'nuevo@email.com' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEmail)(),
+    __metadata("design:type", String)
+], ResendInvitationDto.prototype, "email", void 0);
 class ClientQueryDto {
     status;
     assignedToId;

@@ -19,6 +19,7 @@ const document_entity_1 = require("../../database/entities/document.entity");
 const document_request_entity_1 = require("../../database/entities/document-request.entity");
 const workflow_entity_1 = require("../../database/entities/workflow.entity");
 const notification_entity_1 = require("../../database/entities/notification.entity");
+const user_entity_1 = require("../../database/entities/user.entity");
 let PortalModule = class PortalModule {
 };
 exports.PortalModule = PortalModule;
@@ -32,6 +33,7 @@ exports.PortalModule = PortalModule = __decorate([
                 document_request_entity_1.DocumentRequest,
                 workflow_entity_1.Workflow,
                 notification_entity_1.Notification,
+                user_entity_1.User,
             ]),
             platform_express_1.MulterModule.register({ storage: (0, multer_1.memoryStorage)() }),
         ],

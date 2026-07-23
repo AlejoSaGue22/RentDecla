@@ -8,3 +8,7 @@ export declare class RegisterDto {
     password: string;
     tenantSlug?: string;
 }
+export declare class AcceptInvitationDto {
+    token: string;
+    password: string;
+}

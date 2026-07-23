@@ -39,6 +39,9 @@ let ClientsController = class ClientsController {
     update(id, dto) {
         return this.clientsService.update(id, dto);
     }
+    resendInvitation(id, dto) {
+        return this.clientsService.resendInvitation(id, dto);
+    }
     remove(id) {
         return this.clientsService.remove(id);
     }
@@ -88,6 +91,15 @@ __decorate([
     __metadata("design:paramtypes", [String, client_dto_1.UpdateClientDto]),
     __metadata("design:returntype", void 0)
 ], ClientsController.prototype, "update", null);
+__decorate([
+    (0, common_1.Post)(':id/resend-invitation'),
+    (0, swagger_1.ApiOperation)({ summary: 'Resend invitation email to client' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, client_dto_1.ResendInvitationDto]),
+    __metadata("design:returntype", void 0)
+], ClientsController.prototype, "resendInvitation", null);
 __decorate([
     (0, common_1.Delete)(':id'),
     (0, swagger_1.ApiOperation)({ summary: 'Delete client' }),

@@ -1,9 +1,12 @@
 import { Repository } from 'typeorm';
 import { Client } from '../../database/entities/client.entity';
-import { CreateClientDto, UpdateClientDto, ClientQueryDto } from './dto/client.dto';
+import { CreateClientDto, UpdateClientDto, ClientQueryDto, ResendInvitationDto } from './dto/client.dto';
+import { MailerService } from '../mailer/mailer.service';
 export declare class ClientsService {
     private readonly clientRepository;
-    constructor(clientRepository: Repository<Client>);
+    private readonly mailerService;
+    private readonly logger;
+    constructor(clientRepository: Repository<Client>, mailerService: MailerService);
     create(dto: CreateClientDto & {
         tenantId: string;
         assignedToId?: string;
@@ -12,5 +15,6 @@ export declare class ClientsService {
     findOne(id: string): Promise<Client>;
     findByDocument(documentNumber: string): Promise<Client>;
     update(id: string, dto: UpdateClientDto): Promise<Client>;
+    resendInvitation(id: string, dto?: ResendInvitationDto): Promise<Client>;
     remove(id: string): Promise<Client>;
 }

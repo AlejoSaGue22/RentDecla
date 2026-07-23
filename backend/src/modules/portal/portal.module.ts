@@ -11,6 +11,8 @@ import { DocumentRequest } from '../../database/entities/document-request.entity
 import { Workflow } from '../../database/entities/workflow.entity';
 import { Notification } from '../../database/entities/notification.entity';
 
+import { User } from '../../database/entities/user.entity';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -20,6 +22,7 @@ import { Notification } from '../../database/entities/notification.entity';
       DocumentRequest,
       Workflow,
       Notification,
+      User,
     ]),
     MulterModule.register({ storage: memoryStorage() }),
   ],

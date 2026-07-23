@@ -1,14 +1,19 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
+import { randomUUID } from 'crypto';
 import { Client, ClientStatus } from '../../database/entities/client.entity';
-import { CreateClientDto, UpdateClientDto, ClientQueryDto } from './dto/client.dto';
+import { CreateClientDto, UpdateClientDto, ClientQueryDto, ResendInvitationDto } from './dto/client.dto';
+import { MailerService } from '../mailer/mailer.service';
 
 @Injectable()
 export class ClientsService {
+  private readonly logger = new Logger(ClientsService.name);
+
   constructor(
     @InjectRepository(Client)
     private readonly clientRepository: Repository<Client>,
+    private readonly mailerService: MailerService,
   ) {}
 
   async create(dto: CreateClientDto & { tenantId: string; assignedToId?: string }) {
@@ -20,11 +25,30 @@ export class ClientsService {
     });
     if (existing) throw new ConflictException('Client with this document or email already exists');
 
+    const invitationToken = randomUUID();
+
     const client = this.clientRepository.create({
       ...dto,
       status: ClientStatus.PENDING_INVITATION,
+      invitationToken,
+      invitationSentAt: new Date(),
     });
-    return this.clientRepository.save(client);
+    const saved = await this.clientRepository.save(client);
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+    const invitationUrl = `${frontendUrl}/auth/accept-invitation?token=${invitationToken}`;
+
+    this.mailerService.sendTemplateEmail(
+      dto.email,
+      'Invitación a RentDecla - Completa tu registro',
+      'client-invitation',
+      {
+        clientName: `${dto.firstName} ${dto.lastName}`,
+        invitationUrl,
+      },
+    ).catch((err) => this.logger.error(`Failed to send invitation to ${dto.email}: ${err.message}`));
+
+    return saved;
   }
 
   async findAll(tenantId: string, query: ClientQueryDto) {
@@ -72,6 +96,41 @@ export class ClientsService {
     const client = await this.findOne(id);
     Object.assign(client, dto);
     return this.clientRepository.save(client);
+  }
+
+  async resendInvitation(id: string, dto?: ResendInvitationDto) {
+    const client = await this.findOne(id);
+
+    if (client.status !== ClientStatus.PENDING_INVITATION) {
+      throw new BadRequestException('The client status must be pending invitation to resend');
+    }
+
+    if (dto?.email && dto.email !== client.email) {
+      const existing = await this.clientRepository.findOne({ where: { email: dto.email } });
+      if (existing && existing.id !== id) {
+        throw new ConflictException('Another client with this email already exists');
+      }
+      client.email = dto.email;
+    }
+
+    client.invitationToken = randomUUID();
+    client.invitationSentAt = new Date();
+    const saved = await this.clientRepository.save(client);
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+    const invitationUrl = `${frontendUrl}/auth/accept-invitation?token=${client.invitationToken}`;
+
+    this.mailerService.sendTemplateEmail(
+      client.email,
+      'Invitación a RentDecla - Completa tu registro',
+      'client-invitation',
+      {
+        clientName: `${client.firstName} ${client.lastName}`,
+        invitationUrl,
+      },
+    ).catch((err) => this.logger.error(`Failed to resend invitation to ${client.email}: ${err.message}`));
+
+    return saved;
   }
 
   async remove(id: string) {

@@ -33,6 +33,9 @@ let AuthController = class AuthController {
         const payload = this.authService['jwtService'].verify(refreshToken);
         return this.authService.refreshToken(payload.sub);
     }
+    async acceptInvitation(dto) {
+        return this.authService.acceptInvitation(dto.token, dto.password);
+    }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -67,6 +70,18 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "refresh", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Post)('accept-invitation'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Accept client invitation' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Invitation accepted' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Invalid invitation token' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [auth_dto_1.AcceptInvitationDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "acceptInvitation", null);
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('Auth'),
     (0, common_1.Controller)('auth'),

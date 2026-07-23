@@ -11,7 +11,12 @@ export class LoginGuard implements CanActivate {
 
   canActivate(): boolean {
     if (this.tokenService.isAuthenticated()) {
-      this.router.navigate(['/dashboard']);
+      const role = this.tokenService.getRole();
+      if (role === 'client') {
+        this.router.navigate(['/portal']);
+      } else {
+        this.router.navigate(['/dashboard']);
+      }
       return false;
     }
     return true;

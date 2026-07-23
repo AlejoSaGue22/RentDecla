@@ -35,4 +35,10 @@ export class AuthService {
     const refreshToken = this.tokenService['REFRESH_KEY'];
     return this.http.post<AuthResponse>(`${this.apiUrl}/refresh`, { refreshToken });
   }
+
+  acceptInvitation(token: string, password: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/accept-invitation`, { token, password }).pipe(
+      tap((res) => this.tokenService.setTokens(res.accessToken, res.refreshToken)),
+    );
+  }
 }

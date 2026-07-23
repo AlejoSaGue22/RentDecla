@@ -100,6 +100,13 @@ export class UpdateClientDto {
   assignedToId?: string;
 }
 
+export class ResendInvitationDto {
+  @ApiProperty({ required: false, example: 'nuevo@email.com' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+}
+
 export class ClientQueryDto {
   @ApiProperty({ required: false, enum: ClientStatus })
   @IsOptional()

@@ -42,6 +42,7 @@ let Client = class Client extends base_entity_1.AppBaseEntity {
     status;
     invitationSentAt;
     invitationAcceptedAt;
+    invitationToken;
     notes;
     tenantId;
     assignedToId;
@@ -106,6 +107,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'date', nullable: true }),
     __metadata("design:type", Date)
 ], Client.prototype, "invitationAcceptedAt", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ length: 255, nullable: true }),
+    __metadata("design:type", String)
+], Client.prototype, "invitationToken", void 0);
 __decorate([
     (0, typeorm_1.Column)({ nullable: true, length: 255 }),
     __metadata("design:type", String)

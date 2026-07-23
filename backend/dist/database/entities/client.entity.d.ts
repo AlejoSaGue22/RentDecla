@@ -28,6 +28,7 @@ export declare class Client extends AppBaseEntity {
     status: ClientStatus;
     invitationSentAt?: Date;
     invitationAcceptedAt?: Date;
+    invitationToken?: string;
     notes?: string;
     tenantId: string;
     assignedToId?: string;

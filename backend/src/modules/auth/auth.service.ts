@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -6,6 +6,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User } from '../../database/entities/user.entity';
 import { Tenant } from '../../database/entities/tenant.entity';
+import { Client, ClientStatus } from '../../database/entities/client.entity';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,8 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Tenant)
     private readonly tenantRepository: Repository<Tenant>,
+    @InjectRepository(Client)
+    private readonly clientRepository: Repository<Client>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -70,6 +73,40 @@ export class AuthService {
   async refreshToken(userId: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('User not found');
+    return this.generateTokens(user);
+  }
+
+  async acceptInvitation(token: string, password: string) {
+    const client = await this.clientRepository.findOne({
+      where: { invitationToken: token },
+    });
+
+    if (!client) throw new NotFoundException('Invalid invitation token');
+    if (client.status !== ClientStatus.PENDING_INVITATION) {
+      throw new BadRequestException('Invitation already accepted or expired');
+    }
+
+    const existingUser = await this.userRepository.findOne({
+      where: { email: client.email },
+    });
+    if (existingUser) throw new BadRequestException('Email already registered');
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = this.userRepository.create({
+      name: `${client.firstName} ${client.lastName}`,
+      email: client.email,
+      password: hashedPassword,
+      tenantId: client.tenantId,
+      role: 'client' as any,
+    });
+    await this.userRepository.save(user);
+
+    client.status = ClientStatus.PENDING_PROFILE;
+    client.invitationAcceptedAt = new Date();
+    client.invitationToken = undefined;
+    await this.clientRepository.save(client);
+
     return this.generateTokens(user);
   }
 

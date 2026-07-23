@@ -3,10 +3,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const core_1 = require("@nestjs/core");
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const path_1 = require("path");
+const fs_1 = require("fs");
 const app_module_1 = require("./app.module");
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     const logger = new common_1.Logger('Bootstrap');
+    const uploadDir = process.env.UPLOAD_DIR || (0, path_1.join)(__dirname, '..', 'uploads');
+    if (!(0, fs_1.existsSync)(uploadDir)) {
+        (0, fs_1.mkdirSync)(uploadDir, { recursive: true });
+    }
+    app.useStaticAssets(uploadDir, { prefix: '/uploads' });
     app.enableCors({
         origin: process.env.CORS_ORIGIN || 'http://localhost:4200',
         credentials: true,

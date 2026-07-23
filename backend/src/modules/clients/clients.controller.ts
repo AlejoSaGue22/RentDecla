@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Patch, Delete, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
-import { CreateClientDto, UpdateClientDto, ClientQueryDto } from './dto/client.dto';
+import { CreateClientDto, UpdateClientDto, ClientQueryDto, ResendInvitationDto } from './dto/client.dto';
 import { TenantId } from '../../common/decorators/tenant-id.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -38,6 +38,12 @@ export class ClientsController {
   @ApiOperation({ summary: 'Update client' })
   update(@Param('id') id: string, @Body() dto: UpdateClientDto) {
     return this.clientsService.update(id, dto);
+  }
+
+  @Post(':id/resend-invitation')
+  @ApiOperation({ summary: 'Resend invitation email to client' })
+  resendInvitation(@Param('id') id: string, @Body() dto?: ResendInvitationDto) {
+    return this.clientsService.resendInvitation(id, dto);
   }
 
   @Delete(':id')

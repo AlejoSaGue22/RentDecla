@@ -32,4 +32,16 @@ export class TokenService {
   isAuthenticated(): boolean {
     return !!this.getAccessToken();
   }
+
+  getRole(): string | null {
+    const token = this.getAccessToken();
+    if (!token) return null;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.role || null;
+    } catch {
+      return null;
+    }
+  }
 }

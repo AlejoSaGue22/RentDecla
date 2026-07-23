@@ -39,6 +39,10 @@ export class ClientsService {
     return this.http.patch<Client>(`${this.apiUrl}/${id}`, data);
   }
 
+  resendInvitation(id: string, data?: { email?: string }): Observable<Client> {
+    return this.http.post<Client>(`${this.apiUrl}/${id}/resend-invitation`, data ?? {});
+  }
+
   remove(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }

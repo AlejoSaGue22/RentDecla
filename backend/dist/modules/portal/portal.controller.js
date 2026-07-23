@@ -18,6 +18,8 @@ const platform_express_1 = require("@nestjs/platform-express");
 const swagger_1 = require("@nestjs/swagger");
 const portal_service_1 = require("./portal.service");
 const update_profile_dto_1 = require("./dto/update-profile.dto");
+const update_personal_info_dto_1 = require("./dto/update-personal-info.dto");
+const change_password_dto_1 = require("./dto/change-password.dto");
 const current_user_decorator_1 = require("../../common/decorators/current-user.decorator");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
 const roles_decorator_2 = require("../../common/decorators/roles.decorator");
@@ -29,8 +31,20 @@ let PortalController = class PortalController {
     getProfile(user) {
         return this.portalService.getProfile(user);
     }
+    updatePersonalInfo(user, dto) {
+        return this.portalService.updatePersonalInfo(user, dto);
+    }
+    changePassword(user, dto) {
+        return this.portalService.changePassword(user, dto);
+    }
     getDocuments(user) {
         return this.portalService.getDocuments(user);
+    }
+    async downloadDocument(id, user, res) {
+        const { stream, mimeType, originalName } = await this.portalService.getDocumentStream(id, user);
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', `attachment; filename="${originalName}"`);
+        stream.pipe(res);
     }
     uploadDocument(file, user, category, documentRequestId) {
         return this.portalService.uploadDocument(file, user, category, documentRequestId);
@@ -47,6 +61,9 @@ let PortalController = class PortalController {
     markNotificationRead(id) {
         return this.portalService.markNotificationRead(id);
     }
+    markAllNotificationsRead(user) {
+        return this.portalService.markAllNotificationsRead(user);
+    }
     updateProfile(user, dto) {
         return this.portalService.updateProfile(user, dto);
     }
@@ -61,6 +78,24 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], PortalController.prototype, "getProfile", null);
 __decorate([
+    (0, common_1.Patch)('me'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update client personal info' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, update_personal_info_dto_1.UpdatePersonalInfoDto]),
+    __metadata("design:returntype", void 0)
+], PortalController.prototype, "updatePersonalInfo", null);
+__decorate([
+    (0, common_1.Patch)('password'),
+    (0, swagger_1.ApiOperation)({ summary: 'Change client password' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, change_password_dto_1.ChangePasswordDto]),
+    __metadata("design:returntype", void 0)
+], PortalController.prototype, "changePassword", null);
+__decorate([
     (0, common_1.Get)('documents'),
     (0, swagger_1.ApiOperation)({ summary: 'Get client own documents' }),
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
@@ -68,6 +103,16 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], PortalController.prototype, "getDocuments", null);
+__decorate([
+    (0, common_1.Get)('documents/:id/download'),
+    (0, swagger_1.ApiOperation)({ summary: 'Download a document' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, current_user_decorator_1.CurrentUser)()),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], PortalController.prototype, "downloadDocument", null);
 __decorate([
     (0, common_1.Post)('documents/upload'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file')),
@@ -113,6 +158,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], PortalController.prototype, "markNotificationRead", null);
+__decorate([
+    (0, common_1.Patch)('notifications/read-all'),
+    (0, swagger_1.ApiOperation)({ summary: 'Mark all notifications as read' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], PortalController.prototype, "markAllNotificationsRead", null);
 __decorate([
     (0, common_1.Patch)('profile'),
     (0, swagger_1.ApiOperation)({ summary: 'Update client tax profile' }),

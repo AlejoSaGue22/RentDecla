@@ -1,16 +1,29 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTableModule } from '@angular/material/table';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { PortalService, PortalDocument, PortalDocumentRequest } from '../../services/portal.service';
+
+const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const MAX_SIZE = 10 * 1024 * 1024;
 
 @Component({
   selector: 'app-portal-documents',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatIconModule, MatButtonModule, MatTabsModule, MatTableModule],
+  imports: [
+    CommonModule, FormsModule,
+    MatCardModule, MatIconModule, MatButtonModule, MatTabsModule,
+    MatTableModule, MatSelectModule, MatTooltipModule,
+    MatProgressSpinnerModule, MatSnackBarModule,
+  ],
   template: `
     <div class="documents-page animate-fade-in">
       <div class="page-header">
@@ -19,11 +32,28 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
       </div>
 
       <mat-card class="upload-card">
-        <div class="upload-zone" (click)="fileInput.click()" (drop)="onDrop($event)" (dragover)="onDragOver($event)">
-          <input #fileInput type="file" (change)="onFileSelected($event)" multiple hidden>
-          <mat-icon class="upload-icon">cloud_upload</mat-icon>
-          <h3>Arrastra archivos aquí o haz clic para seleccionar</h3>
-          <p>PDF, JPG, PNG hasta 10MB</p>
+        <div class="upload-controls">
+          <mat-form-field appearance="outline" class="category-field">
+            <mat-label>Categoría</mat-label>
+            <mat-select [(ngModel)]="selectedCategory">
+              <mat-option *ngFor="let cat of categories" [value]="cat">{{ cat }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <div class="upload-zone"
+             [class.uploading]="isUploading"
+             [class.drag-over]="isDragOver"
+             (click)="!isUploading && fileInput.click()"
+             (drop)="onDrop($event)"
+             (dragover)="onDragOver($event)"
+             (dragleave)="onDragLeave($event)">
+          <input #fileInput type="file" (change)="onFileSelected($event)" multiple hidden accept=".pdf,.jpg,.jpeg,.png">
+          <mat-spinner *ngIf="isUploading" diameter="32" class="upload-spinner"></mat-spinner>
+          <ng-container *ngIf="!isUploading">
+            <mat-icon class="upload-icon">cloud_upload</mat-icon>
+            <h3>Arrastra archivos aquí o haz clic para seleccionar</h3>
+            <p>PDF, JPG, PNG hasta 10MB</p>
+          </ng-container>
         </div>
       </mat-card>
 
@@ -33,7 +63,9 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
             <table mat-table [dataSource]="documents" class="documents-table" *ngIf="documents.length > 0">
               <ng-container matColumnDef="name">
                 <th mat-header-cell *matHeaderCellDef>Nombre</th>
-                <td mat-cell *matCellDef="let doc">{{ doc.originalName }}</td>
+                <td mat-cell *matCellDef="let doc">
+                  <span class="doc-name">{{ doc.originalName }}</span>
+                </td>
               </ng-container>
 
               <ng-container matColumnDef="category">
@@ -47,12 +79,25 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
                   <span class="status-badge" [class]="'status-' + doc.status">
                     {{ getStatusLabel(doc.status) }}
                   </span>
+                  <div *ngIf="doc.rejectionReason && (doc.status === 'rejected' || doc.status === 'requires_correction')"
+                       class="rejection-reason">
+                    {{ doc.rejectionReason }}
+                  </div>
                 </td>
               </ng-container>
 
               <ng-container matColumnDef="date">
                 <th mat-header-cell *matHeaderCellDef>Fecha</th>
                 <td mat-cell *matCellDef="let doc">{{ doc.createdAt | date:'short' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef>Acciones</th>
+                <td mat-cell *matCellDef="let doc">
+                  <button mat-icon-button color="primary" (click)="downloadDoc(doc)" matTooltip="Descargar">
+                    <mat-icon>download</mat-icon>
+                  </button>
+                </td>
               </ng-container>
 
               <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
@@ -90,6 +135,14 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
                     {{ request.documents.length }} documento(s) subido(s)
                   </span>
                 </div>
+                <div class="request-actions" *ngIf="request.status !== 'completed'">
+                  <input #reqFileInput type="file" hidden accept=".pdf,.jpg,.jpeg,.png"
+                         (change)="onRequestFileSelected($event, request.id)">
+                  <button mat-stroked-button color="primary" (click)="reqFileInput.click()" [disabled]="isUploading">
+                    <mat-icon>upload_file</mat-icon>
+                    Subir documento
+                  </button>
+                </div>
               </mat-card>
             </div>
 
@@ -124,7 +177,15 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
     }
 
     .upload-card {
-      padding: 32px;
+      padding: 24px 32px;
+    }
+
+    .upload-controls {
+      margin-bottom: 16px;
+    }
+
+    .category-field {
+      width: 280px;
     }
 
     .upload-zone {
@@ -134,6 +195,11 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
       text-align: center;
       cursor: pointer;
       transition: all 0.2s;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
 
     .upload-zone:hover {
@@ -141,11 +207,26 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
       background: #f8fafc;
     }
 
+    .upload-zone.drag-over {
+      border-color: #2563eb;
+      background: #eff6ff;
+    }
+
+    .upload-zone.uploading {
+      cursor: not-allowed;
+      border-color: #94a3b8;
+      background: #f1f5f9;
+    }
+
     .upload-icon {
       font-size: 48px;
       width: 48px;
       height: 48px;
       color: #94a3b8;
+      margin-bottom: 16px;
+    }
+
+    .upload-spinner {
       margin-bottom: 16px;
     }
 
@@ -170,11 +251,17 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
       width: 100%;
     }
 
+    .doc-name {
+      font-weight: 500;
+      color: #1e293b;
+    }
+
     .status-badge {
       padding: 4px 10px;
       border-radius: 16px;
       font-size: 12px;
       font-weight: 500;
+      display: inline-block;
     }
 
     .status-uploaded {
@@ -201,6 +288,13 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
     .status-completed {
       background: #dcfce7;
       color: #166534;
+    }
+
+    .rejection-reason {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #dc2626;
+      font-style: italic;
     }
 
     .empty-state {
@@ -279,14 +373,36 @@ import { PortalService, PortalDocument, PortalDocumentRequest } from '../../serv
       width: 16px;
       height: 16px;
     }
+
+    .request-actions {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+    }
   `],
 })
 export class PortalDocumentsComponent implements OnInit {
   documents: PortalDocument[] = [];
   documentRequests: PortalDocumentRequest[] = [];
-  displayedColumns = ['name', 'category', 'status', 'date'];
+  displayedColumns = ['name', 'category', 'status', 'date', 'actions'];
+  selectedCategory = 'Otro';
+  isUploading = false;
+  isDragOver = false;
 
-  constructor(private portalService: PortalService) {}
+  categories = [
+    'RUT',
+    'Certificado Laboral',
+    'Extracto Bancario',
+    'Impuesto Predial',
+    'Factura de Compra',
+    'Certificado Tributario',
+    'Otro',
+  ];
+
+  constructor(
+    private portalService: PortalService,
+    private snackBar: MatSnackBar,
+  ) {}
 
   ngOnInit() {
     this.loadDocuments();
@@ -295,49 +411,87 @@ export class PortalDocumentsComponent implements OnInit {
 
   loadDocuments() {
     this.portalService.getDocuments().subscribe({
-      next: (docs) => {
-        this.documents = docs;
-      },
+      next: (docs) => { this.documents = docs; },
     });
   }
 
   loadDocumentRequests() {
     this.portalService.getDocumentRequests().subscribe({
-      next: (requests) => {
-        this.documentRequests = requests;
-      },
+      next: (requests) => { this.documentRequests = requests; },
     });
+  }
+
+  validateFile(file: File): string | null {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return 'Tipo de archivo no permitido. Solo se aceptan PDF, JPG y PNG.';
+    }
+    if (file.size > MAX_SIZE) {
+      return 'El archivo excede el límite de 10MB.';
+    }
+    return null;
   }
 
   onFileSelected(event: any) {
     const files = event.target.files;
-    this.uploadFiles(files);
-  }
-
-  onDrop(event: DragEvent) {
-    event.preventDefault();
-    const files = event.dataTransfer?.files;
-    if (files) {
-      this.uploadFiles(files);
-    }
+    if (files) this.uploadFiles(files, this.selectedCategory);
+    event.target.value = '';
   }
 
   onDragOver(event: DragEvent) {
     event.preventDefault();
+    this.isDragOver = true;
   }
 
-  uploadFiles(files: FileList) {
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    this.isDragOver = false;
+  }
+
+  onDrop(event: DragEvent) {
+    event.preventDefault();
+    this.isDragOver = false;
+    const files = event.dataTransfer?.files;
+    if (files) this.uploadFiles(files, this.selectedCategory);
+  }
+
+  onRequestFileSelected(event: any, requestId: string) {
+    const files = event.target.files;
+    if (files) this.uploadFiles(files, this.selectedCategory, requestId);
+    event.target.value = '';
+  }
+
+  uploadFiles(files: FileList, category?: string, documentRequestId?: string) {
     for (let i = 0; i < files.length; i++) {
-      this.portalService.uploadDocument(files[i]).subscribe({
+      const error = this.validateFile(files[i]);
+      if (error) {
+        this.snackBar.open(error, 'Cerrar', { duration: 5000 });
+        continue;
+      }
+
+      this.isUploading = true;
+      this.portalService.uploadDocument(files[i], category, documentRequestId).subscribe({
         next: () => {
           this.loadDocuments();
+          this.loadDocumentRequests();
+          this.isUploading = false;
+          this.snackBar.open('Documento subido correctamente', 'Cerrar', { duration: 3000 });
+        },
+        error: (err) => {
+          this.isUploading = false;
+          const msg = err.error?.message || 'Error al subir el documento';
+          this.snackBar.open(msg, 'Cerrar', { duration: 5000 });
         },
       });
     }
   }
 
+  downloadDoc(doc: PortalDocument) {
+    window.open(this.portalService.downloadUrl(doc.id), '_blank');
+  }
+
   getStatusLabel(status: string): string {
     const labels: Record<string, string> = {
+      pending: 'Pendiente',
       uploaded: 'Subido',
       approved: 'Aprobado',
       rejected: 'Rechazado',
@@ -351,6 +505,8 @@ export class PortalDocumentsComponent implements OnInit {
       pending: 'Pendiente',
       partially_uploaded: 'Parcial',
       completed: 'Completado',
+      approved: 'Aprobado',
+      requires_correction: 'Requiere corrección',
     };
     return labels[status] || status;
   }

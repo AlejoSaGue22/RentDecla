@@ -8,6 +8,9 @@ export interface PortalProfile {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string;
+  address?: string;
+  city?: string;
   documentNumber: string;
   status: string;
   taxProfile?: any;
@@ -17,6 +20,9 @@ export interface PortalProfile {
     pendingDocumentRequests: number;
     rejectedDocuments: number;
   };
+  recentDocuments?: PortalDocument[];
+  upcomingDeadlines?: PortalDocumentRequest[];
+  recentNotifications?: PortalNotification[];
 }
 
 export interface PortalDocument {
@@ -62,8 +68,20 @@ export class PortalService {
     return this.http.get<PortalProfile>(`${this.apiUrl}/me`);
   }
 
+  updatePersonalInfo(data: { phone?: string; address?: string; city?: string }): Observable<PortalProfile> {
+    return this.http.patch<PortalProfile>(`${this.apiUrl}/me`, data);
+  }
+
+  changePassword(data: { currentPassword: string; newPassword: string }): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/password`, data);
+  }
+
   getDocuments(): Observable<PortalDocument[]> {
     return this.http.get<PortalDocument[]>(`${this.apiUrl}/documents`);
+  }
+
+  downloadUrl(id: string): string {
+    return `${this.apiUrl}/documents/${id}/download`;
   }
 
   uploadDocument(file: File, category?: string, documentRequestId?: string): Observable<PortalDocument> {
@@ -88,6 +106,10 @@ export class PortalService {
 
   markNotificationRead(id: string): Observable<void> {
     return this.http.patch<void>(`${this.apiUrl}/notifications/${id}/read`, {});
+  }
+
+  markAllNotificationsRead(): Observable<{ marked: number }> {
+    return this.http.patch<{ marked: number }>(`${this.apiUrl}/notifications/read-all`, {});
   }
 
   updateProfile(data: any): Observable<any> {

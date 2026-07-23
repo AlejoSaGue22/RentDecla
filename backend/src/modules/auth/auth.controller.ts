@@ -2,7 +2,7 @@ import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { Public } from '../../common/decorators/public.decorator';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, AcceptInvitationDto } from './dto/auth.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -34,5 +34,15 @@ export class AuthController {
   async refresh(@Body('refreshToken') refreshToken: string) {
     const payload = this.authService['jwtService'].verify(refreshToken);
     return this.authService.refreshToken(payload.sub);
+  }
+
+  @Public()
+  @Post('accept-invitation')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Accept client invitation' })
+  @ApiResponse({ status: 200, description: 'Invitation accepted' })
+  @ApiResponse({ status: 404, description: 'Invalid invitation token' })
+  async acceptInvitation(@Body() dto: AcceptInvitationDto) {
+    return this.authService.acceptInvitation(dto.token, dto.password);
   }
 }

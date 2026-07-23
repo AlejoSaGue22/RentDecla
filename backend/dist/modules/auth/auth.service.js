@@ -54,14 +54,17 @@ const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcryptjs"));
 const user_entity_1 = require("../../database/entities/user.entity");
 const tenant_entity_1 = require("../../database/entities/tenant.entity");
+const client_entity_1 = require("../../database/entities/client.entity");
 let AuthService = class AuthService {
     userRepository;
     tenantRepository;
+    clientRepository;
     jwtService;
     configService;
-    constructor(userRepository, tenantRepository, jwtService, configService) {
+    constructor(userRepository, tenantRepository, clientRepository, jwtService, configService) {
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
+        this.clientRepository = clientRepository;
         this.jwtService = jwtService;
         this.configService = configService;
     }
@@ -113,6 +116,35 @@ let AuthService = class AuthService {
             throw new common_1.UnauthorizedException('User not found');
         return this.generateTokens(user);
     }
+    async acceptInvitation(token, password) {
+        const client = await this.clientRepository.findOne({
+            where: { invitationToken: token },
+        });
+        if (!client)
+            throw new common_1.NotFoundException('Invalid invitation token');
+        if (client.status !== client_entity_1.ClientStatus.PENDING_INVITATION) {
+            throw new common_1.BadRequestException('Invitation already accepted or expired');
+        }
+        const existingUser = await this.userRepository.findOne({
+            where: { email: client.email },
+        });
+        if (existingUser)
+            throw new common_1.BadRequestException('Email already registered');
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = this.userRepository.create({
+            name: `${client.firstName} ${client.lastName}`,
+            email: client.email,
+            password: hashedPassword,
+            tenantId: client.tenantId,
+            role: 'client',
+        });
+        await this.userRepository.save(user);
+        client.status = client_entity_1.ClientStatus.PENDING_PROFILE;
+        client.invitationAcceptedAt = new Date();
+        client.invitationToken = undefined;
+        await this.clientRepository.save(client);
+        return this.generateTokens(user);
+    }
     generateTokens(user) {
         const payload = {
             sub: user.id,
@@ -145,7 +177,9 @@ exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __param(1, (0, typeorm_1.InjectRepository)(tenant_entity_1.Tenant)),
+    __param(2, (0, typeorm_1.InjectRepository)(client_entity_1.Client)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
+        typeorm_2.Repository,
         typeorm_2.Repository,
         jwt_1.JwtService,
         config_1.ConfigService])

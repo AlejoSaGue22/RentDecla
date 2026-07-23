@@ -60,6 +60,9 @@ export class Client extends AppBaseEntity {
   @Column({ type: 'date', nullable: true })
   invitationAcceptedAt?: Date;
 
+  @Column({ length: 255, nullable: true })
+  invitationToken?: string;
+
   @Column({ nullable: true, length: 255 })
   notes?: string;
 

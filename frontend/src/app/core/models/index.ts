@@ -50,8 +50,11 @@ export interface Client {
   phone?: string;
   address?: string;
   city?: string;
+  nationality?: string;
   status: ClientStatus;
+  notes?: string;
   tenantId: string;
+  assignedToId?: string;
   assignedTo?: User;
   taxProfile?: TaxProfile;
   createdAt: string;

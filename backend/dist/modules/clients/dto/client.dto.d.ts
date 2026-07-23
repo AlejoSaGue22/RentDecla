@@ -22,6 +22,9 @@ export declare class UpdateClientDto {
     notes?: string;
     assignedToId?: string;
 }
+export declare class ResendInvitationDto {
+    email?: string;
+}
 export declare class ClientQueryDto {
     status?: ClientStatus;
     assignedToId?: string;

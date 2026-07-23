@@ -32,3 +32,14 @@ export class RegisterDto {
   @IsString()
   tenantSlug?: string;
 }
+
+export class AcceptInvitationDto {
+  @ApiProperty({ example: 'abc-123-token' })
+  @IsString()
+  token: string;
+
+  @ApiProperty({ example: 'password123' })
+  @IsString()
+  @MinLength(6)
+  password: string;
+}

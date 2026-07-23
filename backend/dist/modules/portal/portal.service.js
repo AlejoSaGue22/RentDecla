@@ -49,6 +49,7 @@ exports.PortalService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const bcrypt = __importStar(require("bcryptjs"));
 const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const client_entity_1 = require("../../database/entities/client.entity");
@@ -57,7 +58,11 @@ const document_entity_1 = require("../../database/entities/document.entity");
 const document_request_entity_1 = require("../../database/entities/document-request.entity");
 const workflow_entity_1 = require("../../database/entities/workflow.entity");
 const notification_entity_1 = require("../../database/entities/notification.entity");
+const user_entity_1 = require("../../database/entities/user.entity");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
+const notification_service_1 = require("../notifications/notification.service");
+const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 let PortalService = class PortalService {
     clientRepository;
     taxProfileRepository;
@@ -65,13 +70,17 @@ let PortalService = class PortalService {
     documentRequestRepository;
     workflowRepository;
     notificationRepository;
-    constructor(clientRepository, taxProfileRepository, documentRepository, documentRequestRepository, workflowRepository, notificationRepository) {
+    userRepository;
+    notificationService;
+    constructor(clientRepository, taxProfileRepository, documentRepository, documentRequestRepository, workflowRepository, notificationRepository, userRepository, notificationService) {
         this.clientRepository = clientRepository;
         this.taxProfileRepository = taxProfileRepository;
         this.documentRepository = documentRepository;
         this.documentRequestRepository = documentRequestRepository;
         this.workflowRepository = workflowRepository;
         this.notificationRepository = notificationRepository;
+        this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
     async resolveClient(user) {
         if (user.role !== roles_decorator_1.UserRole.CLIENT) {
@@ -99,11 +108,29 @@ let PortalService = class PortalService {
         const pendingDocs = await this.documentRepository.count({
             where: { clientId: client.id, status: document_entity_1.DocumentStatus.REJECTED },
         });
+        const recentDocuments = await this.documentRepository.find({
+            where: { clientId: client.id },
+            order: { createdAt: 'DESC' },
+            take: 5,
+        });
+        const upcomingDeadlines = await this.documentRequestRepository.find({
+            where: { clientId: client.id, dueDate: { $gte: new Date() } },
+            order: { dueDate: 'ASC' },
+            take: 5,
+        });
+        const recentNotifications = await this.notificationRepository.find({
+            where: { clientId: client.id, readAt: null },
+            order: { createdAt: 'DESC' },
+            take: 3,
+        });
         return {
             id: client.id,
             firstName: client.firstName,
             lastName: client.lastName,
             email: client.email,
+            phone: client.phone,
+            address: client.address,
+            city: client.city,
             documentNumber: client.documentNumber,
             status: client.status,
             taxProfile: client.taxProfile,
@@ -113,6 +140,9 @@ let PortalService = class PortalService {
                 pendingDocumentRequests: pendingRequests,
                 rejectedDocuments: pendingDocs,
             },
+            recentDocuments,
+            upcomingDeadlines,
+            recentNotifications,
         };
     }
     async getDocuments(user) {
@@ -122,9 +152,29 @@ let PortalService = class PortalService {
             order: { createdAt: 'DESC' },
         });
     }
+    async getDocumentStream(id, user) {
+        const client = await this.resolveClient(user);
+        const document = await this.documentRepository.findOne({
+            where: { id, clientId: client.id },
+        });
+        if (!document) {
+            throw new common_1.NotFoundException('Document not found');
+        }
+        if (!fs.existsSync(document.filePath)) {
+            throw new common_1.NotFoundException('File not found on disk');
+        }
+        const stream = fs.createReadStream(document.filePath);
+        return { stream, mimeType: document.mimeType, originalName: document.originalName };
+    }
     async uploadDocument(file, user, category, documentRequestId) {
         if (!file)
             throw new common_1.BadRequestException('File is required');
+        if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+            throw new common_1.BadRequestException('File type not allowed. Only PDF, JPG, and PNG are accepted.');
+        }
+        if (file.size > MAX_FILE_SIZE) {
+            throw new common_1.BadRequestException('File size exceeds the 10MB limit.');
+        }
         const client = await this.resolveClient(user);
         const uploadDir = process.env.UPLOAD_DIR || './uploads';
         const clientDir = path.join(uploadDir, client.id);
@@ -144,7 +194,29 @@ let PortalService = class PortalService {
             category,
             documentRequestId,
         });
-        return this.documentRepository.save(document);
+        const savedDocument = await this.documentRepository.save(document);
+        await this.notificationService.notifyDocumentUploaded(savedDocument, client);
+        if (documentRequestId) {
+            await this.updateDocumentRequestStatus(documentRequestId);
+        }
+        if (client.status === client_entity_1.ClientStatus.PENDING_PROFILE) {
+            client.status = client_entity_1.ClientStatus.PENDING_DOCUMENTS;
+            await this.clientRepository.save(client);
+        }
+        return savedDocument;
+    }
+    async updateDocumentRequestStatus(documentRequestId) {
+        const request = await this.documentRequestRepository.findOne({
+            where: { id: documentRequestId },
+            relations: { documents: true },
+        });
+        if (!request)
+            return;
+        const docCount = request.documents?.length || 0;
+        if (docCount > 0 && request.status === document_request_entity_1.RequestStatus.PENDING) {
+            request.status = document_request_entity_1.RequestStatus.PARTIALLY_UPLOADED;
+            await this.documentRequestRepository.save(request);
+        }
     }
     async getDocumentRequests(user) {
         const client = await this.resolveClient(user);
@@ -179,6 +251,18 @@ let PortalService = class PortalService {
         notification.readAt = new Date();
         return this.notificationRepository.save(notification);
     }
+    async markAllNotificationsRead(user) {
+        const client = await this.resolveClient(user);
+        const unread = await this.notificationRepository.find({
+            where: { clientId: client.id, readAt: null },
+        });
+        for (const n of unread) {
+            n.status = 'read';
+            n.readAt = new Date();
+        }
+        await this.notificationRepository.save(unread);
+        return { marked: unread.length };
+    }
     async updateProfile(user, dto) {
         const client = await this.resolveClient(user);
         let profile = await this.taxProfileRepository.findOne({
@@ -195,6 +279,26 @@ let PortalService = class PortalService {
         }
         return this.taxProfileRepository.save(profile);
     }
+    async updatePersonalInfo(user, dto) {
+        const client = await this.resolveClient(user);
+        Object.assign(client, dto);
+        return this.clientRepository.save(client);
+    }
+    async changePassword(user, dto) {
+        const client = await this.resolveClient(user);
+        const appUser = await this.userRepository.findOne({
+            where: { email: client.email },
+        });
+        if (!appUser) {
+            throw new common_1.NotFoundException('User account not found');
+        }
+        const isPasswordValid = await bcrypt.compare(dto.currentPassword, appUser.password);
+        if (!isPasswordValid) {
+            throw new common_1.BadRequestException('Current password is incorrect');
+        }
+        appUser.password = await bcrypt.hash(dto.newPassword, 10);
+        return this.userRepository.save(appUser);
+    }
 };
 exports.PortalService = PortalService;
 exports.PortalService = PortalService = __decorate([
@@ -205,11 +309,14 @@ exports.PortalService = PortalService = __decorate([
     __param(3, (0, typeorm_1.InjectRepository)(document_request_entity_1.DocumentRequest)),
     __param(4, (0, typeorm_1.InjectRepository)(workflow_entity_1.Workflow)),
     __param(5, (0, typeorm_1.InjectRepository)(notification_entity_1.Notification)),
+    __param(6, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     __metadata("design:paramtypes", [typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        typeorm_2.Repository,
+        notification_service_1.NotificationService])
 ], PortalService);
 //# sourceMappingURL=portal.service.js.map

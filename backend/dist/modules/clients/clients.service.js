@@ -11,16 +11,22 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var ClientsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ClientsService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
+const crypto_1 = require("crypto");
 const client_entity_1 = require("../../database/entities/client.entity");
-let ClientsService = class ClientsService {
+const mailer_service_1 = require("../mailer/mailer.service");
+let ClientsService = ClientsService_1 = class ClientsService {
     clientRepository;
-    constructor(clientRepository) {
+    mailerService;
+    logger = new common_1.Logger(ClientsService_1.name);
+    constructor(clientRepository, mailerService) {
         this.clientRepository = clientRepository;
+        this.mailerService = mailerService;
     }
     async create(dto) {
         const existing = await this.clientRepository.findOne({
@@ -31,11 +37,21 @@ let ClientsService = class ClientsService {
         });
         if (existing)
             throw new common_1.ConflictException('Client with this document or email already exists');
+        const invitationToken = (0, crypto_1.randomUUID)();
         const client = this.clientRepository.create({
             ...dto,
             status: client_entity_1.ClientStatus.PENDING_INVITATION,
+            invitationToken,
+            invitationSentAt: new Date(),
         });
-        return this.clientRepository.save(client);
+        const saved = await this.clientRepository.save(client);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+        const invitationUrl = `${frontendUrl}/auth/accept-invitation?token=${invitationToken}`;
+        this.mailerService.sendTemplateEmail(dto.email, 'Invitación a RentDecla - Completa tu registro', 'client-invitation', {
+            clientName: `${dto.firstName} ${dto.lastName}`,
+            invitationUrl,
+        }).catch((err) => this.logger.error(`Failed to send invitation to ${dto.email}: ${err.message}`));
+        return saved;
     }
     async findAll(tenantId, query) {
         let where = { tenantId };
@@ -81,6 +97,29 @@ let ClientsService = class ClientsService {
         Object.assign(client, dto);
         return this.clientRepository.save(client);
     }
+    async resendInvitation(id, dto) {
+        const client = await this.findOne(id);
+        if (client.status !== client_entity_1.ClientStatus.PENDING_INVITATION) {
+            throw new common_1.BadRequestException('The client status must be pending invitation to resend');
+        }
+        if (dto?.email && dto.email !== client.email) {
+            const existing = await this.clientRepository.findOne({ where: { email: dto.email } });
+            if (existing && existing.id !== id) {
+                throw new common_1.ConflictException('Another client with this email already exists');
+            }
+            client.email = dto.email;
+        }
+        client.invitationToken = (0, crypto_1.randomUUID)();
+        client.invitationSentAt = new Date();
+        const saved = await this.clientRepository.save(client);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
+        const invitationUrl = `${frontendUrl}/auth/accept-invitation?token=${client.invitationToken}`;
+        this.mailerService.sendTemplateEmail(client.email, 'Invitación a RentDecla - Completa tu registro', 'client-invitation', {
+            clientName: `${client.firstName} ${client.lastName}`,
+            invitationUrl,
+        }).catch((err) => this.logger.error(`Failed to resend invitation to ${client.email}: ${err.message}`));
+        return saved;
+    }
     async remove(id) {
         const client = await this.findOne(id);
         client.status = client_entity_1.ClientStatus.ARCHIVED;
@@ -88,9 +127,10 @@ let ClientsService = class ClientsService {
     }
 };
 exports.ClientsService = ClientsService;
-exports.ClientsService = ClientsService = __decorate([
+exports.ClientsService = ClientsService = ClientsService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(client_entity_1.Client)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository,
+        mailer_service_1.MailerService])
 ], ClientsService);
 //# sourceMappingURL=clients.service.js.map
