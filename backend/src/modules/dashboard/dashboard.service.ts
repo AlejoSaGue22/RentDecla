@@ -19,30 +19,31 @@ export class DashboardService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  async getStats(tenantId: string) {
-    const totalClients = await this.clientRepository.count({ where: { tenantId } });
+  async getStats(tenantId?: string) {
+    const tenantCondition = tenantId ? { tenantId } : {};
+    const totalClients = await this.clientRepository.count({ where: tenantCondition });
     const pendingClients = await this.clientRepository.count({
-      where: { tenantId, status: ClientStatus.PENDING_DOCUMENTS },
+      where: { ...tenantCondition, status: ClientStatus.PENDING_DOCUMENTS },
     });
     const completedClients = await this.clientRepository.count({
-      where: { tenantId, status: ClientStatus.COMPLETED },
+      where: { ...tenantCondition, status: ClientStatus.COMPLETED },
     });
     const inReviewClients = await this.clientRepository.count({
-      where: { tenantId, status: ClientStatus.IN_REVIEW },
+      where: { ...tenantCondition, status: ClientStatus.IN_REVIEW },
     });
 
     const activeWorkflows = await this.workflowRepository.count({
-      where: { tenantId, status: WorkflowStatus.IN_PROGRESS },
+      where: { ...tenantCondition, status: WorkflowStatus.IN_PROGRESS },
     });
     const completedWorkflows = await this.workflowRepository.count({
-      where: { tenantId, status: WorkflowStatus.COMPLETED },
+      where: { ...tenantCondition, status: WorkflowStatus.COMPLETED },
     });
 
     const pendingDocuments = await this.documentRepository.count({
       where: { status: DocumentStatus.PENDING },
     });
 
-    const totalUsers = await this.userRepository.count({ where: { tenantId } });
+    const totalUsers = await this.userRepository.count({ where: tenantCondition });
 
     return {
       totalClients,
@@ -56,9 +57,10 @@ export class DashboardService {
     };
   }
 
-  async getRecentActivity(tenantId: string) {
+  async getRecentActivity(tenantId?: string) {
+    const where = tenantId ? { tenantId } : {};
     const recentClients = await this.clientRepository.find({
-      where: { tenantId },
+      where,
       order: { createdAt: 'DESC' as const },
       take: 10,
       relations: { assignedTo: true },

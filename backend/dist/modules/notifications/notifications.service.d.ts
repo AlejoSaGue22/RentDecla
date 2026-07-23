@@ -7,7 +7,7 @@ export declare class NotificationsService {
     create(dto: CreateNotificationDto & {
         tenantId: string;
     }): Promise<Notification>;
-    findAll(tenantId: string, clientId?: string): Promise<Notification[]>;
+    findAll(tenantId?: string, clientId?: string): Promise<Notification[]>;
     findOne(id: string): Promise<Notification>;
     markAsRead(id: string): Promise<Notification>;
 }

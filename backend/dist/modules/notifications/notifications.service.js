@@ -27,7 +27,7 @@ let NotificationsService = class NotificationsService {
         return this.notificationRepository.save(notification);
     }
     async findAll(tenantId, clientId) {
-        const where = { tenantId };
+        const where = tenantId ? { tenantId } : {};
         if (clientId)
             where.clientId = clientId;
         return this.notificationRepository.find({

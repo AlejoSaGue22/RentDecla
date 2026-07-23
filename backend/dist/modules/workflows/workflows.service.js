@@ -30,7 +30,7 @@ let WorkflowsService = class WorkflowsService {
         return this.workflowRepository.save(workflow);
     }
     async findAll(tenantId, query) {
-        const where = { tenantId };
+        const where = tenantId ? { tenantId } : {};
         if (query.status)
             where.status = query.status;
         if (query.clientId)

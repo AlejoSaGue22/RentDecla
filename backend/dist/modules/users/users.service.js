@@ -70,7 +70,7 @@ let UsersService = class UsersService {
         return this.userRepository.save(user);
     }
     async findAll(tenantId, query) {
-        const where = { tenantId };
+        const where = tenantId ? { tenantId } : {};
         if (query.role)
             where.role = query.role;
         if (query.search) {

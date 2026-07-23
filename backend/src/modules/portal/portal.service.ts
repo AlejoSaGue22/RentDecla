@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual, IsNull } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -21,6 +21,7 @@ import { UpdatePersonalInfoDto } from './dto/update-personal-info.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserRole } from '../../common/decorators/roles.decorator';
 import { NotificationService } from '../notifications/notification.service';
+import { getStoragePath } from '../../common/utils/storage-path.util';
 
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -86,13 +87,13 @@ export class PortalService {
     });
 
     const upcomingDeadlines = await this.documentRequestRepository.find({
-      where: { clientId: client.id, dueDate: { $gte: new Date() } as any },
+      where: { clientId: client.id, dueDate: MoreThanOrEqual(new Date()) },
       order: { dueDate: 'ASC' as const },
       take: 5,
     });
 
     const recentNotifications = await this.notificationRepository.find({
-      where: { clientId: client.id, readAt: null as any },
+      where: { clientId: client.id, readAt: IsNull() },
       order: { createdAt: 'DESC' as const },
       take: 3,
     });
@@ -166,20 +167,14 @@ export class PortalService {
 
     const client = await this.resolveClient(user);
 
-    const uploadDir = process.env.UPLOAD_DIR || './uploads';
-    const clientDir = path.join(uploadDir, client.id);
-    if (!fs.existsSync(clientDir)) {
-      fs.mkdirSync(clientDir, { recursive: true });
-    }
-
     const fileName = `${Date.now()}-${file.originalname}`;
-    const filePath = path.join(clientDir, fileName);
+    const { filePath, fileUrl } = getStoragePath(client, fileName);
     fs.writeFileSync(filePath, file.buffer);
 
     const document = this.documentRepository.create({
       originalName: file.originalname,
       filePath,
-      fileUrl: `/uploads/${client.id}/${fileName}`,
+      fileUrl,
       mimeType: file.mimetype,
       fileSize: file.size,
       clientId: client.id,
@@ -263,7 +258,7 @@ export class PortalService {
     const client = await this.resolveClient(user);
 
     const unread = await this.notificationRepository.find({
-      where: { clientId: client.id, readAt: null as any },
+      where: { clientId: client.id, readAt: IsNull() },
     });
 
     for (const n of unread) {
@@ -291,10 +286,117 @@ export class PortalService {
       profile = this.taxProfileRepository.create({
         ...dto,
         clientId: client.id,
+        client: client,
       });
     }
 
-    return this.taxProfileRepository.save(profile);
+    const savedProfile = await this.taxProfileRepository.save(profile);
+
+    await this.syncDocumentRequestsFromTaxProfile(client, savedProfile);
+
+    if (client.status === ClientStatus.PENDING_PROFILE) {
+      client.status = ClientStatus.PENDING_DOCUMENTS;
+      await this.clientRepository.save(client);
+    }
+
+    return savedProfile;
+  }
+
+  private async syncDocumentRequestsFromTaxProfile(client: Client, taxProfile: TaxProfile) {
+    const defaultDueDate = new Date();
+    defaultDueDate.setDate(defaultDueDate.getDate() + 30);
+
+    const rules = [
+      {
+        condition: true,
+        title: 'Copia del RUT Actualizado',
+        description: 'Copia en PDF del Registro Único Tributario (RUT) actualizado.',
+        priority: 10,
+      },
+      {
+        condition: true,
+        title: 'Documento de Identidad (CC/CE)',
+        description: 'Copia legible del documento de identidad por ambos lados.',
+        priority: 9,
+      },
+      {
+        condition: !!taxProfile.hasIngresosLaborales,
+        title: 'Certificado de Ingresos y Retenciones (Formulario 220)',
+        description: 'Certificado expedido por tu empleador para el año gravable a declarar.',
+        priority: 10,
+      },
+      {
+        condition: !!taxProfile.hasIngresosIndependientes,
+        title: 'Certificados de Retención por Honorarios y Servicios',
+        description: 'Certificados de retención en la fuente expedidos por tus clientes o contratantes.',
+        priority: 8,
+      },
+      {
+        condition: !!taxProfile.hasRendimientosFinancieros || !!taxProfile.hasInversiones,
+        title: 'Certificados Financieros y Rendimientos Anuales',
+        description: 'Certificados de saldos y rendimientos financieros a 31 de diciembre expedidos por bancos.',
+        priority: 8,
+      },
+      {
+        condition: !!taxProfile.hasPropiedades,
+        title: 'Impuesto Predial de Inmuebles',
+        description: 'Recibo o certificado del pago del impuesto predial unificado de tus inmuebles.',
+        priority: 7,
+      },
+      {
+        condition: !!taxProfile.hasVehiculos,
+        title: 'Impuesto sobre Vehículos Automotores',
+        description: 'Comprobante de pago del impuesto de vehículos a tu nombre.',
+        priority: 6,
+      },
+      {
+        condition: !!taxProfile.hasMedicinaPrepaga,
+        title: 'Certificado de Pagos a Medicina Prepagada',
+        description: 'Certificado anual expedido por la entidad de medicina prepagada o plan complementario.',
+        priority: 9,
+      },
+      {
+        condition: !!taxProfile.hasCreditoHipotecario,
+        title: 'Certificado de Intereses por Crédito Hipotecario / Leasing',
+        description: 'Certificado bancario con los intereses pagados por crédito de vivienda.',
+        priority: 9,
+      },
+      {
+        condition: !!taxProfile.hasAportesVoluntarios,
+        title: 'Certificado de Aportes Voluntarios a Pensiones / AFC',
+        description: 'Certificado de aportes a fondos de pensiones voluntarias o cuentas AFC.',
+        priority: 8,
+      },
+      {
+        condition: !!taxProfile.hasDependientes,
+        title: 'Soportes de Dependientes Económicos',
+        description: 'Registro civil de nacimiento de hijos o certificación de dependencia económica.',
+        priority: 7,
+      },
+    ];
+
+    const existingRequests = await this.documentRequestRepository.find({
+      where: { clientId: client.id },
+    });
+
+    for (const rule of rules) {
+      if (rule.condition) {
+        const alreadyExists = existingRequests.some((r) => r.title === rule.title);
+        if (!alreadyExists) {
+          const req = this.documentRequestRepository.create({
+            title: rule.title,
+            description: rule.description,
+            priority: rule.priority,
+            isRequired: true,
+            status: RequestStatus.PENDING,
+            tenantId: client.tenantId,
+            clientId: client.id,
+            dueDate: defaultDueDate,
+          });
+          await this.documentRequestRepository.save(req);
+        }
+      }
+    }
   }
 
   async updatePersonalInfo(

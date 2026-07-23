@@ -9,7 +9,7 @@ export declare class WorkflowsService {
     create(dto: CreateWorkflowDto & {
         tenantId: string;
     }): Promise<Workflow>;
-    findAll(tenantId: string, query: WorkflowQueryDto): Promise<Workflow[]>;
+    findAll(tenantId: string | undefined, query: WorkflowQueryDto): Promise<Workflow[]>;
     findByClient(clientId: string): Promise<Workflow[]>;
     findOne(id: string): Promise<Workflow>;
     updateStatus(id: string, status: string): Promise<Workflow>;

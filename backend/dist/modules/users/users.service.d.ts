@@ -7,7 +7,7 @@ export declare class UsersService {
     create(dto: CreateUserDto & {
         tenantId?: string;
     }): Promise<User>;
-    findAll(tenantId: string, query: UserQueryDto): Promise<User[]>;
+    findAll(tenantId: string | undefined, query: UserQueryDto): Promise<User[]>;
     findOne(id: string): Promise<User>;
     update(id: string, dto: UpdateUserDto): Promise<User>;
     remove(id: string): Promise<User>;

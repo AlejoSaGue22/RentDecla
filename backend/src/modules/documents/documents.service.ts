@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import { Document } from '../../database/entities/document.entity';
 import { Client } from '../../database/entities/client.entity';
 import { NotificationService } from '../notifications/notification.service';
+import { getStoragePath } from '../../common/utils/storage-path.util';
 
 @Injectable()
 export class DocumentsService {
@@ -27,23 +28,18 @@ export class DocumentsService {
 
     const client = await this.clientRepository.findOne({
       where: { id: metadata.clientId },
+      relations: { tenant: true },
     });
     if (!client) throw new NotFoundException('Client not found');
 
-    const uploadDir = process.env.UPLOAD_DIR || './uploads';
-    const clientDir = path.join(uploadDir, metadata.clientId);
-    if (!fs.existsSync(clientDir)) {
-      fs.mkdirSync(clientDir, { recursive: true });
-    }
-
     const fileName = `${Date.now()}-${file.originalname}`;
-    const filePath = path.join(clientDir, fileName);
+    const { filePath, fileUrl } = getStoragePath(client, fileName);
     fs.writeFileSync(filePath, file.buffer);
 
     const document = this.documentRepository.create({
       originalName: file.originalname,
       filePath,
-      fileUrl: `/uploads/${metadata.clientId}/${fileName}`,
+      fileUrl,
       mimeType: file.mimetype,
       fileSize: file.size,
       clientId: metadata.clientId,

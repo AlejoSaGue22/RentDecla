@@ -32,8 +32,8 @@ let TaxProfile = class TaxProfile extends base_entity_1.AppBaseEntity {
     dependientes;
     taxYear;
     metadata;
-    client;
     clientId;
+    client;
 };
 exports.TaxProfile = TaxProfile;
 __decorate([
@@ -109,14 +109,14 @@ __decorate([
     __metadata("design:type", Object)
 ], TaxProfile.prototype, "metadata", void 0);
 __decorate([
-    (0, typeorm_1.OneToOne)(() => client_entity_1.Client, (client) => client.taxProfile),
-    (0, typeorm_1.JoinColumn)(),
-    __metadata("design:type", client_entity_1.Client)
-], TaxProfile.prototype, "client", void 0);
-__decorate([
-    (0, typeorm_1.RelationId)((tp) => tp.client),
+    (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], TaxProfile.prototype, "clientId", void 0);
+__decorate([
+    (0, typeorm_1.OneToOne)(() => client_entity_1.Client, (client) => client.taxProfile),
+    (0, typeorm_1.JoinColumn)({ name: 'clientId' }),
+    __metadata("design:type", client_entity_1.Client)
+], TaxProfile.prototype, "client", void 0);
 exports.TaxProfile = TaxProfile = __decorate([
     (0, typeorm_1.Entity)('tax_profiles')
 ], TaxProfile);

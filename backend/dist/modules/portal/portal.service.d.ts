@@ -95,6 +95,7 @@ export declare class PortalService {
         tenantId?: string;
         role: string;
     }, dto: UpdatePortalProfileDto): Promise<TaxProfile>;
+    private syncDocumentRequestsFromTaxProfile;
     updatePersonalInfo(user: {
         email: string;
         tenantId?: string;

@@ -26,8 +26,8 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  async findAll(tenantId: string, query: UserQueryDto) {
-    const where: any = { tenantId };
+  async findAll(tenantId: string | undefined, query: UserQueryDto) {
+    const where: any = tenantId ? { tenantId } : {};
     if (query.role) where.role = query.role;
     if (query.search) {
       where.name = Like(`%${query.search}%`);

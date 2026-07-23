@@ -11,7 +11,7 @@ export declare class ClientsService {
         tenantId: string;
         assignedToId?: string;
     }): Promise<Client>;
-    findAll(tenantId: string, query: ClientQueryDto): Promise<Client[]>;
+    findAll(tenantId: string | undefined, query: ClientQueryDto): Promise<Client[]>;
     findOne(id: string): Promise<Client>;
     findByDocument(documentNumber: string): Promise<Client>;
     update(id: string, dto: UpdateClientDto): Promise<Client>;

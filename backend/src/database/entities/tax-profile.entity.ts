@@ -59,10 +59,10 @@ export class TaxProfile extends AppBaseEntity {
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any>;
 
-  @OneToOne(() => Client, (client) => client.taxProfile)
-  @JoinColumn()
-  client: Client;
-
-  @RelationId((tp: TaxProfile) => tp.client)
+  @Column({ nullable: true })
   clientId: string;
+
+  @OneToOne(() => Client, (client) => client.taxProfile)
+  @JoinColumn({ name: 'clientId' })
+  client: Client;
 }

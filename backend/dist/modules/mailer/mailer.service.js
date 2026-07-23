@@ -65,9 +65,15 @@ let MailerService = MailerService_1 = class MailerService {
         this.loadTemplates();
     }
     loadTemplates() {
-        const templatesDir = path.join(__dirname, 'templates');
-        if (!fs.existsSync(templatesDir)) {
-            this.logger.warn(`Templates directory not found: ${templatesDir}`);
+        const candidatePaths = [
+            path.join(__dirname, 'templates'),
+            path.join(process.cwd(), 'src', 'modules', 'mailer', 'templates'),
+            path.join(process.cwd(), 'dist', 'src', 'modules', 'mailer', 'templates'),
+            path.join(process.cwd(), 'dist', 'modules', 'mailer', 'templates'),
+        ];
+        const templatesDir = candidatePaths.find((p) => fs.existsSync(p));
+        if (!templatesDir) {
+            this.logger.warn(`Templates directory not found in candidate paths`);
             return;
         }
         const files = fs.readdirSync(templatesDir);
@@ -77,7 +83,7 @@ let MailerService = MailerService_1 = class MailerService {
                 const templatePath = path.join(templatesDir, file);
                 const template = fs.readFileSync(templatePath, 'utf-8');
                 this.templates.set(templateName, template);
-                this.logger.log(`Loaded template: ${templateName}`);
+                this.logger.log(`Loaded template "${templateName}" from ${templatePath}`);
             }
         }
     }
@@ -89,7 +95,7 @@ let MailerService = MailerService_1 = class MailerService {
                 subject,
                 html,
             });
-            this.logger.log(`Email sent to ${to}: ${subject}`);
+            this.logger.log(`Email successfully dispatched via SMTP to: ${to} (Subject: "${subject}")`);
             return true;
         }
         catch (error) {
@@ -110,10 +116,10 @@ let MailerService = MailerService_1 = class MailerService {
         return this.sendEmail(to, subject, template);
     }
     getFallbackTemplate(templateName, variables) {
-        const title = variables.title || templateName;
-        const message = variables.message || '';
-        const actionUrl = variables.actionUrl || '';
-        const actionText = variables.actionText || 'Ver detalles';
+        const title = variables.title || variables.clientName || 'Bienvenido a RentDecla';
+        const message = variables.message || 'Has sido registrado en nuestro sistema de Declaración de Renta. Para comenzar, por favor completa tu registro definiendo una contraseña.';
+        const actionUrl = variables.invitationUrl || variables.actionUrl || '';
+        const actionText = variables.actionText || 'Aceptar Invitación';
         return `
       <!DOCTYPE html>
       <html>
@@ -135,7 +141,7 @@ let MailerService = MailerService_1 = class MailerService {
           </div>
           <div class="content">
             <p>${message}</p>
-            ${actionUrl ? `<p><a href="${actionUrl}" class="button">${actionText}</a></p>` : ''}
+            ${actionUrl ? `<p><a href="${actionUrl}" class="button">${actionText}</a></p><p style="word-break: break-all; color: #2563eb;">${actionUrl}</p>` : ''}
           </div>
           <div class="footer">
             <p>RentDecla - Sistema de Declaración de Renta</p>

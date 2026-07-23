@@ -49,11 +49,11 @@ exports.DocumentsService = void 0;
 const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
-const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const document_entity_1 = require("../../database/entities/document.entity");
 const client_entity_1 = require("../../database/entities/client.entity");
 const notification_service_1 = require("../notifications/notification.service");
+const storage_path_util_1 = require("../../common/utils/storage-path.util");
 let DocumentsService = class DocumentsService {
     documentRepository;
     clientRepository;
@@ -68,21 +68,17 @@ let DocumentsService = class DocumentsService {
             throw new common_1.BadRequestException('File is required');
         const client = await this.clientRepository.findOne({
             where: { id: metadata.clientId },
+            relations: { tenant: true },
         });
         if (!client)
             throw new common_1.NotFoundException('Client not found');
-        const uploadDir = process.env.UPLOAD_DIR || './uploads';
-        const clientDir = path.join(uploadDir, metadata.clientId);
-        if (!fs.existsSync(clientDir)) {
-            fs.mkdirSync(clientDir, { recursive: true });
-        }
         const fileName = `${Date.now()}-${file.originalname}`;
-        const filePath = path.join(clientDir, fileName);
+        const { filePath, fileUrl } = (0, storage_path_util_1.getStoragePath)(client, fileName);
         fs.writeFileSync(filePath, file.buffer);
         const document = this.documentRepository.create({
             originalName: file.originalname,
             filePath,
-            fileUrl: `/uploads/${metadata.clientId}/${fileName}`,
+            fileUrl,
             mimeType: file.mimetype,
             fileSize: file.size,
             clientId: metadata.clientId,

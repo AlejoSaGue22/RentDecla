@@ -19,6 +19,6 @@ export declare class TaxProfile extends AppBaseEntity {
     dependientes?: Record<string, any>[];
     taxYear?: number;
     metadata?: Record<string, any>;
-    client: Client;
     clientId: string;
+    client: Client;
 }

@@ -47,6 +47,7 @@ let ClientsService = ClientsService_1 = class ClientsService {
         const saved = await this.clientRepository.save(client);
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
         const invitationUrl = `${frontendUrl}/auth/accept-invitation?token=${invitationToken}`;
+        this.logger.log(`📧 [CLIENT INVITATION CREATED] Email: ${dto.email} | URL: ${invitationUrl}`);
         this.mailerService.sendTemplateEmail(dto.email, 'Invitación a RentDecla - Completa tu registro', 'client-invitation', {
             clientName: `${dto.firstName} ${dto.lastName}`,
             invitationUrl,
@@ -54,19 +55,25 @@ let ClientsService = ClientsService_1 = class ClientsService {
         return saved;
     }
     async findAll(tenantId, query) {
-        let where = { tenantId };
+        let baseWhere = {};
+        if (tenantId)
+            baseWhere.tenantId = tenantId;
         if (query.status)
-            where.status = query.status;
+            baseWhere.status = query.status;
         if (query.assignedToId)
-            where.assignedToId = query.assignedToId;
+            baseWhere.assignedToId = query.assignedToId;
         const search = query.search && query.search.trim() !== '' && query.search !== 'undefined' ? query.search.trim() : null;
+        let where;
         if (search) {
             const searchLike = (0, typeorm_2.Like)(`%${search}%`);
             where = [
-                { tenantId, firstName: searchLike, ...(query.status ? { status: query.status } : {}), ...(query.assignedToId ? { assignedToId: query.assignedToId } : {}) },
-                { tenantId, lastName: searchLike, ...(query.status ? { status: query.status } : {}), ...(query.assignedToId ? { assignedToId: query.assignedToId } : {}) },
-                { tenantId, documentNumber: searchLike, ...(query.status ? { status: query.status } : {}), ...(query.assignedToId ? { assignedToId: query.assignedToId } : {}) },
+                { ...baseWhere, firstName: searchLike },
+                { ...baseWhere, lastName: searchLike },
+                { ...baseWhere, documentNumber: searchLike },
             ];
+        }
+        else {
+            where = baseWhere;
         }
         return this.clientRepository.find({
             where,
@@ -114,6 +121,7 @@ let ClientsService = ClientsService_1 = class ClientsService {
         const saved = await this.clientRepository.save(client);
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
         const invitationUrl = `${frontendUrl}/auth/accept-invitation?token=${client.invitationToken}`;
+        this.logger.log(`📧 [CLIENT INVITATION RESENT] Email: ${client.email} | URL: ${invitationUrl}`);
         this.mailerService.sendTemplateEmail(client.email, 'Invitación a RentDecla - Completa tu registro', 'client-invitation', {
             clientName: `${client.firstName} ${client.lastName}`,
             invitationUrl,

@@ -38,6 +38,8 @@ export class ClientsService {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
     const invitationUrl = `${frontendUrl}/auth/accept-invitation?token=${invitationToken}`;
 
+    this.logger.log(`📧 [CLIENT INVITATION CREATED] Email: ${dto.email} | URL: ${invitationUrl}`);
+
     this.mailerService.sendTemplateEmail(
       dto.email,
       'Invitación a RentDecla - Completa tu registro',
@@ -51,20 +53,24 @@ export class ClientsService {
     return saved;
   }
 
-  async findAll(tenantId: string, query: ClientQueryDto) {
-    let where: any = { tenantId };
-    if (query.status) where.status = query.status;
-    if (query.assignedToId) where.assignedToId = query.assignedToId;
+  async findAll(tenantId: string | undefined, query: ClientQueryDto) {
+    let baseWhere: any = {};
+    if (tenantId) baseWhere.tenantId = tenantId;
+    if (query.status) baseWhere.status = query.status;
+    if (query.assignedToId) baseWhere.assignedToId = query.assignedToId;
 
     const search = query.search && query.search.trim() !== '' && query.search !== 'undefined' ? query.search.trim() : null;
 
+    let where: any;
     if (search) {
       const searchLike = Like(`%${search}%`);
       where = [
-        { tenantId, firstName: searchLike, ...(query.status ? { status: query.status } : {}), ...(query.assignedToId ? { assignedToId: query.assignedToId } : {}) },
-        { tenantId, lastName: searchLike, ...(query.status ? { status: query.status } : {}), ...(query.assignedToId ? { assignedToId: query.assignedToId } : {}) },
-        { tenantId, documentNumber: searchLike, ...(query.status ? { status: query.status } : {}), ...(query.assignedToId ? { assignedToId: query.assignedToId } : {}) },
+        { ...baseWhere, firstName: searchLike },
+        { ...baseWhere, lastName: searchLike },
+        { ...baseWhere, documentNumber: searchLike },
       ];
+    } else {
+      where = baseWhere;
     }
 
     return this.clientRepository.find({
@@ -119,6 +125,8 @@ export class ClientsService {
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4200';
     const invitationUrl = `${frontendUrl}/auth/accept-invitation?token=${client.invitationToken}`;
+
+    this.logger.log(`📧 [CLIENT INVITATION RESENT] Email: ${client.email} | URL: ${invitationUrl}`);
 
     this.mailerService.sendTemplateEmail(
       client.email,

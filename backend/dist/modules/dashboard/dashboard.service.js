@@ -32,26 +32,27 @@ let DashboardService = class DashboardService {
         this.userRepository = userRepository;
     }
     async getStats(tenantId) {
-        const totalClients = await this.clientRepository.count({ where: { tenantId } });
+        const tenantCondition = tenantId ? { tenantId } : {};
+        const totalClients = await this.clientRepository.count({ where: tenantCondition });
         const pendingClients = await this.clientRepository.count({
-            where: { tenantId, status: client_entity_1.ClientStatus.PENDING_DOCUMENTS },
+            where: { ...tenantCondition, status: client_entity_1.ClientStatus.PENDING_DOCUMENTS },
         });
         const completedClients = await this.clientRepository.count({
-            where: { tenantId, status: client_entity_1.ClientStatus.COMPLETED },
+            where: { ...tenantCondition, status: client_entity_1.ClientStatus.COMPLETED },
         });
         const inReviewClients = await this.clientRepository.count({
-            where: { tenantId, status: client_entity_1.ClientStatus.IN_REVIEW },
+            where: { ...tenantCondition, status: client_entity_1.ClientStatus.IN_REVIEW },
         });
         const activeWorkflows = await this.workflowRepository.count({
-            where: { tenantId, status: workflow_entity_1.WorkflowStatus.IN_PROGRESS },
+            where: { ...tenantCondition, status: workflow_entity_1.WorkflowStatus.IN_PROGRESS },
         });
         const completedWorkflows = await this.workflowRepository.count({
-            where: { tenantId, status: workflow_entity_1.WorkflowStatus.COMPLETED },
+            where: { ...tenantCondition, status: workflow_entity_1.WorkflowStatus.COMPLETED },
         });
         const pendingDocuments = await this.documentRepository.count({
             where: { status: document_entity_1.DocumentStatus.PENDING },
         });
-        const totalUsers = await this.userRepository.count({ where: { tenantId } });
+        const totalUsers = await this.userRepository.count({ where: tenantCondition });
         return {
             totalClients,
             pendingClients,
@@ -64,8 +65,9 @@ let DashboardService = class DashboardService {
         };
     }
     async getRecentActivity(tenantId) {
+        const where = tenantId ? { tenantId } : {};
         const recentClients = await this.clientRepository.find({
-            where: { tenantId },
+            where,
             order: { createdAt: 'DESC' },
             take: 10,
             relations: { assignedTo: true },

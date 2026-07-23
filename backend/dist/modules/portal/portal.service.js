@@ -50,7 +50,6 @@ const common_1 = require("@nestjs/common");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const bcrypt = __importStar(require("bcryptjs"));
-const path = __importStar(require("path"));
 const fs = __importStar(require("fs"));
 const client_entity_1 = require("../../database/entities/client.entity");
 const tax_profile_entity_1 = require("../../database/entities/tax-profile.entity");
@@ -61,6 +60,7 @@ const notification_entity_1 = require("../../database/entities/notification.enti
 const user_entity_1 = require("../../database/entities/user.entity");
 const roles_decorator_1 = require("../../common/decorators/roles.decorator");
 const notification_service_1 = require("../notifications/notification.service");
+const storage_path_util_1 = require("../../common/utils/storage-path.util");
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 let PortalService = class PortalService {
@@ -114,12 +114,12 @@ let PortalService = class PortalService {
             take: 5,
         });
         const upcomingDeadlines = await this.documentRequestRepository.find({
-            where: { clientId: client.id, dueDate: { $gte: new Date() } },
+            where: { clientId: client.id, dueDate: (0, typeorm_2.MoreThanOrEqual)(new Date()) },
             order: { dueDate: 'ASC' },
             take: 5,
         });
         const recentNotifications = await this.notificationRepository.find({
-            where: { clientId: client.id, readAt: null },
+            where: { clientId: client.id, readAt: (0, typeorm_2.IsNull)() },
             order: { createdAt: 'DESC' },
             take: 3,
         });
@@ -176,18 +176,13 @@ let PortalService = class PortalService {
             throw new common_1.BadRequestException('File size exceeds the 10MB limit.');
         }
         const client = await this.resolveClient(user);
-        const uploadDir = process.env.UPLOAD_DIR || './uploads';
-        const clientDir = path.join(uploadDir, client.id);
-        if (!fs.existsSync(clientDir)) {
-            fs.mkdirSync(clientDir, { recursive: true });
-        }
         const fileName = `${Date.now()}-${file.originalname}`;
-        const filePath = path.join(clientDir, fileName);
+        const { filePath, fileUrl } = (0, storage_path_util_1.getStoragePath)(client, fileName);
         fs.writeFileSync(filePath, file.buffer);
         const document = this.documentRepository.create({
             originalName: file.originalname,
             filePath,
-            fileUrl: `/uploads/${client.id}/${fileName}`,
+            fileUrl,
             mimeType: file.mimetype,
             fileSize: file.size,
             clientId: client.id,
@@ -254,7 +249,7 @@ let PortalService = class PortalService {
     async markAllNotificationsRead(user) {
         const client = await this.resolveClient(user);
         const unread = await this.notificationRepository.find({
-            where: { clientId: client.id, readAt: null },
+            where: { clientId: client.id, readAt: (0, typeorm_2.IsNull)() },
         });
         for (const n of unread) {
             n.status = 'read';
@@ -275,9 +270,109 @@ let PortalService = class PortalService {
             profile = this.taxProfileRepository.create({
                 ...dto,
                 clientId: client.id,
+                client: client,
             });
         }
-        return this.taxProfileRepository.save(profile);
+        const savedProfile = await this.taxProfileRepository.save(profile);
+        await this.syncDocumentRequestsFromTaxProfile(client, savedProfile);
+        if (client.status === client_entity_1.ClientStatus.PENDING_PROFILE) {
+            client.status = client_entity_1.ClientStatus.PENDING_DOCUMENTS;
+            await this.clientRepository.save(client);
+        }
+        return savedProfile;
+    }
+    async syncDocumentRequestsFromTaxProfile(client, taxProfile) {
+        const defaultDueDate = new Date();
+        defaultDueDate.setDate(defaultDueDate.getDate() + 30);
+        const rules = [
+            {
+                condition: true,
+                title: 'Copia del RUT Actualizado',
+                description: 'Copia en PDF del Registro Único Tributario (RUT) actualizado.',
+                priority: 10,
+            },
+            {
+                condition: true,
+                title: 'Documento de Identidad (CC/CE)',
+                description: 'Copia legible del documento de identidad por ambos lados.',
+                priority: 9,
+            },
+            {
+                condition: !!taxProfile.hasIngresosLaborales,
+                title: 'Certificado de Ingresos y Retenciones (Formulario 220)',
+                description: 'Certificado expedido por tu empleador para el año gravable a declarar.',
+                priority: 10,
+            },
+            {
+                condition: !!taxProfile.hasIngresosIndependientes,
+                title: 'Certificados de Retención por Honorarios y Servicios',
+                description: 'Certificados de retención en la fuente expedidos por tus clientes o contratantes.',
+                priority: 8,
+            },
+            {
+                condition: !!taxProfile.hasRendimientosFinancieros || !!taxProfile.hasInversiones,
+                title: 'Certificados Financieros y Rendimientos Anuales',
+                description: 'Certificados de saldos y rendimientos financieros a 31 de diciembre expedidos por bancos.',
+                priority: 8,
+            },
+            {
+                condition: !!taxProfile.hasPropiedades,
+                title: 'Impuesto Predial de Inmuebles',
+                description: 'Recibo o certificado del pago del impuesto predial unificado de tus inmuebles.',
+                priority: 7,
+            },
+            {
+                condition: !!taxProfile.hasVehiculos,
+                title: 'Impuesto sobre Vehículos Automotores',
+                description: 'Comprobante de pago del impuesto de vehículos a tu nombre.',
+                priority: 6,
+            },
+            {
+                condition: !!taxProfile.hasMedicinaPrepaga,
+                title: 'Certificado de Pagos a Medicina Prepagada',
+                description: 'Certificado anual expedido por la entidad de medicina prepagada o plan complementario.',
+                priority: 9,
+            },
+            {
+                condition: !!taxProfile.hasCreditoHipotecario,
+                title: 'Certificado de Intereses por Crédito Hipotecario / Leasing',
+                description: 'Certificado bancario con los intereses pagados por crédito de vivienda.',
+                priority: 9,
+            },
+            {
+                condition: !!taxProfile.hasAportesVoluntarios,
+                title: 'Certificado de Aportes Voluntarios a Pensiones / AFC',
+                description: 'Certificado de aportes a fondos de pensiones voluntarias o cuentas AFC.',
+                priority: 8,
+            },
+            {
+                condition: !!taxProfile.hasDependientes,
+                title: 'Soportes de Dependientes Económicos',
+                description: 'Registro civil de nacimiento de hijos o certificación de dependencia económica.',
+                priority: 7,
+            },
+        ];
+        const existingRequests = await this.documentRequestRepository.find({
+            where: { clientId: client.id },
+        });
+        for (const rule of rules) {
+            if (rule.condition) {
+                const alreadyExists = existingRequests.some((r) => r.title === rule.title);
+                if (!alreadyExists) {
+                    const req = this.documentRequestRepository.create({
+                        title: rule.title,
+                        description: rule.description,
+                        priority: rule.priority,
+                        isRequired: true,
+                        status: document_request_entity_1.RequestStatus.PENDING,
+                        tenantId: client.tenantId,
+                        clientId: client.id,
+                        dueDate: defaultDueDate,
+                    });
+                    await this.documentRequestRepository.save(req);
+                }
+            }
+        }
     }
     async updatePersonalInfo(user, dto) {
         const client = await this.resolveClient(user);

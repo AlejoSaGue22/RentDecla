@@ -18,8 +18,8 @@ export class WorkflowsService {
     return this.workflowRepository.save(workflow);
   }
 
-  async findAll(tenantId: string, query: WorkflowQueryDto) {
-    const where: any = { tenantId };
+  async findAll(tenantId: string | undefined, query: WorkflowQueryDto) {
+    const where: any = tenantId ? { tenantId } : {};
     if (query.status) where.status = query.status;
     if (query.clientId) where.clientId = query.clientId;
     if (query.taxYear) where.taxYear = query.taxYear;

@@ -9,7 +9,7 @@ export declare class DashboardService {
     private readonly documentRepository;
     private readonly userRepository;
     constructor(clientRepository: Repository<Client>, workflowRepository: Repository<Workflow>, documentRepository: Repository<Document>, userRepository: Repository<User>);
-    getStats(tenantId: string): Promise<{
+    getStats(tenantId?: string): Promise<{
         totalClients: number;
         pendingClients: number;
         completedClients: number;
@@ -19,7 +19,7 @@ export declare class DashboardService {
         pendingDocuments: number;
         totalUsers: number;
     }>;
-    getRecentActivity(tenantId: string): Promise<{
+    getRecentActivity(tenantId?: string): Promise<{
         type: string;
         description: string;
         date: Date;

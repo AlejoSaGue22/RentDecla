@@ -16,8 +16,8 @@ export class NotificationsService {
     return this.notificationRepository.save(notification);
   }
 
-  async findAll(tenantId: string, clientId?: string) {
-    const where: any = { tenantId };
+  async findAll(tenantId?: string, clientId?: string) {
+    const where: any = tenantId ? { tenantId } : {};
     if (clientId) where.clientId = clientId;
     return this.notificationRepository.find({
       where,
